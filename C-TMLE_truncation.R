@@ -98,24 +98,53 @@ C_TMLE_truncation <- function(observed_data, d0, deltas){
   # End of iterative targeting
   
   # Compute estimate
+  Utgtd_Psi_n <- mean(Q1d_bar_0n)
   Psi_n <- mean(current_Q1d_bar_n)
-  list(Psi_n = Psi_n, delta_sequence = deltas[deltas_indices_used])
+  list(Utgtd_Psi_n = Utgtd_Psi_n, Psi_n = Psi_n, delta_sequence = deltas[deltas_indices_used])
 }
 
 
 # Simulations -------------------------------------------------------------
-observed_data <- generate_data(R = 4, alpha0 = 2, beta0 = -3, beta1 = -1.5, beta2 = -2, n = 10000)
+set.seed(0)
 deltas <- c(1e-4, 5e-4, (1:9)*1e-3, (1:9)*1e-2, (1:4)*1e-1)
-print(C_TMLE_truncation(observed_data, alwaysTreated0, deltas))
 
+# Compute true value of EY^d
 compute_Psi_d_MC <- function(R, alpha0, beta0, beta1, beta2, d0, M){
   # Monte-Carlo estimation of the true value of mean of Yd
   L0_MC <- runif(M, min=-R, max=R)
   A0_MC <- d0(L0_MC)
-  g0_MC <- expit(alpha0*L0_MC)
-  PL1givenA0L0_MC <- expit(beta0+beta1*A0_MC+beta2*L0_MC)
+  g0_MC <- expit(alpha0 * L0_MC)
+  PL1givenA0L0_MC <- expit(beta0 + beta1 * A0_MC + beta2 * L0_MC)
   mean(PL1givenA0L0_MC)
 }
 
 Psi_d0 <- compute_Psi_d_MC(R = 4, alpha0 = 2, beta0 = -3, beta1 = -1.5, beta2 = -2, alwaysTreated0, M = 1e6)
 
+# Specify the jobs. A job is the computation of a batch. 
+# It is fully characterized by the parameters_tuple_id that the batch corresponds to.
+ns <- c((1:9)*100, c(1:10)*1000)
+parameters_grid <- expand.grid(R = 4, alpha0 = 2, beta0 = -3, beta1 = -1.5, beta2 = -2, n = ns)
+batch_size <- 100; nb_batchs <- 100
+jobs <- kronecker(1:(dim(parameters_grid)[1]), rep(1, nb_batchs))
+
+# Perform the jobs in parallel
+library(doParallel); library(foreach)
+
+cl <- makeCluster(getOption("cl.cores", 36), outfile = "")
+registerDoParallel(cl)
+
+results <- foreach(i=1:length(jobs)) %dopar% { #job is a parameter_tuple_id
+  job <- jobs[i]
+  results_batch <- matrix(0, nrow = batch_size, ncol = 3)
+  colnames(results_batch) <- c("parameters_tuple_id", "Utgtd", "C-TMLE")
+  for(i in 1:batch_size){
+    observed_data <- generate_data(R = parameters_grid[job,]$R, alpha0 = parameters_grid[job,]$alpha0, 
+                                   beta0 = parameters_grid[job,]$beta0, beta1 = parameters_grid[job,]$beta1, 
+                                   beta2 = parameters_grid[job,]$beta2, n = parameters_grid[job,]$n)
+    result_C_TMLE <- C_TMLE_truncation(observed_data, alwaysTreated0, deltas)
+    results_batch[i, ] <- c(job, result_C_TMLE$Utgtd_Psi_n, result_C_TMLE$Psi_n)
+  }
+  results_batch
+}
+
+stopCluster(cl)
