@@ -104,7 +104,7 @@ C_TMLE_truncation <- function(observed_data, d0, deltas){
 
 
 # Simulations -------------------------------------------------------------
-observed_data <- generate_data(R = 4, alpha0 = 2, beta0 = -3, beta1 = -1.5, beta2 = -2, n = 1000)
+observed_data <- generate_data(R = 4, alpha0 = 2, beta0 = -3, beta1 = -1.5, beta2 = -2, n = 10000)
 deltas <- c(1e-4, 5e-4, (1:9)*1e-3, (1:9)*1e-2, (1:4)*1e-1)
 print(C_TMLE_truncation(observed_data, alwaysTreated0, deltas))
 
