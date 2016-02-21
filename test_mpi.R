@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 dumbFunction <- function(mean){
   x <- rnorm(1e7, mean = mean, sd = 1)
   mean(x)
@@ -14,6 +16,7 @@ results <- foreach(i=1:34){
 }
 
 print(results)
+save(result, file = "test_results")
 
 closeCluster(cl)
 mpi.quit()
