@@ -8,10 +8,10 @@ dumbFunction <- function(mean){
 
 library(Rmpi); library(doMPI)
 
-cl <- startMPIcluster(32)
+cl <- startMPIcluster(32*3)
 registerDoMPI(cl)
 
-results <- foreach(i=1:34){
+results <- foreach(i=1:3000) %dopar% {
   dumbFunction(i) 
 }
 
