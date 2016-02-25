@@ -116,12 +116,7 @@ C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified
       
       # Compute loss of the candidate on training set. Update best loss and best candidate
       # if needed
-      loss_evaluation_support <- intersect(which(A0 == d0(L0)), test_set_indices)
-      
-      candidate_loss <- - sum(log(candidate_Q1d_bar_n)[intersect(loss_evaluation_support,
-                                                                which(L1 == 1))]) -
-                          sum(log(1 - candidate_Q1d_bar_n)[intersect(loss_evaluation_support,
-                                               which(L1 == 0))])
+      candidate_loss <- mean(((L1 - candidate_Q1d_bar_n)^2 * (A0 == d0(L0)))[test_set_indices])
       
       if(is.nan(candidate_loss)){
         cat("order = ", order, "and delta0 = ", delta0, "\n")
@@ -176,7 +171,7 @@ Psi_d0 <- compute_Psi_d_MC(R = 4, alpha0 = 2, beta0 = -3, beta1 = -1.5, beta2 = 
 # It is fully characterized by the parameters_tuple_id that the batch corresponds to.
 ns <- c((1:9)*100, c(1:9)*1000, 2*c(1:5)*1e4)
 parameters_grid <- expand.grid(R = 4, alpha0 = 2, beta0 = -3, beta1 = -1.5, beta2 = -2, n = ns)
-batch_size <- 1; nb_batchs <- 200
+batch_size <- 50; nb_batchs <- 200
 jobs <- kronecker(1:nrow(parameters_grid), rep(1, nb_batchs))
 jobs <- sample(jobs)
 
@@ -188,7 +183,6 @@ cl <- startMPIcluster(32)
 registerDoMPI(cl)
 
 results <- foreach(i=1:length(jobs)) %dopar% { #job is a parameter_tuple_id
-  i <- 1
   job <- jobs[i]
   results_batch <- matrix(0, nrow = batch_size, ncol = 5)
   colnames(results_batch) <- c("parameters_tuple_id", "Utgtd", "C-TMLE", "order", "delta0")
