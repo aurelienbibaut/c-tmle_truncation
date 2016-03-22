@@ -243,6 +243,9 @@ library(Rmpi); library(doMPI)
 
 cl <- startMPIcluster(72)
 registerDoMPI(cl)
+# library(foreach); library(doParallel)
+# cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
+# registerDoParallel(cl)
 
 results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   job <- jobs[i]
@@ -267,6 +270,7 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
 
     results_batch[j, ] <- c(job, Psi_d0, seed, result_C_TMLE$Psi_n, Utgtd_untr_Psi_n, Utgtd_extr_Psi_n,
                             result_C_TMLE$tp_indices$order, result_C_TMLE$tp_indices$delta0)
+  print(j)
   }
 
   if(!file.exists("C-TMLE_multi_orders_intermediate_results.csv")){
