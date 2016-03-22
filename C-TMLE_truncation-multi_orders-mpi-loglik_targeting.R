@@ -239,15 +239,16 @@ first_seed_batch <- first_seed_batch[jobs_permutation]
 write.table(parameters_grid, file = "parameters_grid.csv", append=F, row.names=F, col.names=T,  sep=",")
 
 # Perform the jobs in parallel
-library(Rmpi); library(doMPI)
-
-cl <- startMPIcluster(72)
-registerDoMPI(cl)
+# library(Rmpi); library(doMPI)
+# 
+# cl <- startMPIcluster(72)
+# registerDoMPI(cl)
 # library(foreach); library(doParallel)
 # cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
 # registerDoParallel(cl)
 
-results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
+# results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
+for(i in 1:length(jobs)){
   job <- jobs[i]
   results_batch <- matrix(0, nrow = batch_size, ncol = 8)
   colnames(results_batch) <- c("parameters_tuple_id", "EYd", "seed","Utgtd-untr","Utgtd-extr", "C-TMLE", "order", "delta0")
@@ -260,8 +261,8 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
     result_C_TMLE <- list(Utgtd_Psi_n = NA, Psi_n = NA)
     try(result_C_TMLE <- C_TMLE_truncation(observed_data, alwaysTreated0, orders, 
                                            delta0s, Q_misspecified = F))
-    Utgtd_untr_Psi_n <- TMLE_truncated_target(observed_data, d0, 0, Q_misspecified = F)
-    Utgtd_extr_Psi_n <- untargeted_extrapolation(observed_data, d0,
+    Utgtd_untr_Psi_n <- TMLE_truncated_target(observed_data, alwaysTreated0, 0, Q_misspecified = F)
+    Utgtd_extr_Psi_n <- untargeted_extrapolation(observed_data, alwaysTreated0,
                                                  result_C_TMLE$tp_indices$order,
                                                  result_C_TMLE$tp_indices$delta0, Q_misspecified = F)
 # print(result_C_TMLE)
