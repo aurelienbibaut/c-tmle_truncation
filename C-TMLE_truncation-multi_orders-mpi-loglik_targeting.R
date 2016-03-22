@@ -194,7 +194,7 @@ C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified
   
   # Compute estimate: pick the TMLE with lowest cross validated loss
   # First recompute deltas, a_delta0, deltas and gn0_deltas for the pair of best indices
-  best_indices <- which(CV_losses == min(CV_losses), arr.ind = T)
+  best_indices <- which(CV_losses == min(CV_losses), arr.ind = T)[1,]
   best_order <- orders[best_indices[1]]; best_delta0 <- delta0s[best_indices[2]]
   Psi_n <- TMLE_extrapolation(observed_data, 1:n, 1:n, d0, best_order, best_delta0)$Psi_n
   
@@ -208,7 +208,7 @@ C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified
 # set.seed(0)
 delta0s <- c(1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 2e-1)
 # delta0s <- c(1e-4, 5e-4, (1:9)*1e-3, (1:9)*1e-2, (1:4)*1e-1)
-# delta0s <- 1e-4
+delta0s <- 1e-4
 orders <- 0:8
 # orders <- 9
 
@@ -228,13 +228,12 @@ Psi_d0 <- compute_Psi_d_MC(R = 4, alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 
 # It is fully characterized by the parameters_tuple_id that the batch corresponds to.
 ns <- c((1:9)*100, c(1:9)*1000, 2*c(1:5)*1e4)
 parameters_grid <- expand.grid(R = 4, alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns)
-batch_size <- 10; nb_batchs <- 100
+batch_size <- 40; nb_batchs <- 500
 jobs <- kronecker(1:nrow(parameters_grid), rep(1, nb_batchs))
-first_batch_seed <- 1:length(jobs) * batch_size
+first_seed_batch <- 1:length(jobs) * batch_size
 jobs_permutation <- sample(1:length(jobs))
 jobs <- jobs[jobs_permutation]
-fist_batch_seed <- first_batch_seed[jobs_permutation]
-
+first_seed_batch <- first_seed_batch[jobs_permutation]
 
 # Save the parameters' grid
 write.table(parameters_grid, file = "parameters_grid.csv", append=F, row.names=F, col.names=T,  sep=",")
@@ -245,13 +244,13 @@ library(Rmpi); library(doMPI)
 cl <- startMPIcluster(72)
 registerDoMPI(cl)
 
-results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_id
+results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   job <- jobs[i]
   results_batch <- matrix(0, nrow = batch_size, ncol = 8)
   colnames(results_batch) <- c("parameters_tuple_id", "EYd", "seed","Utgtd-untr","Utgtd-extr", "C-TMLE", "order", "delta0")
   for(j in 1:batch_size){
 # job <- 5
-    seed <- first_batch_seed[i] + j - 1; set.seed(seed)
+    seed <- first_seed_batch[i] + j - 1; set.seed(seed)
     observed_data <- generate_data(R = parameters_grid[job,]$R, alpha0 = parameters_grid[job,]$alpha0, 
                                    beta0 = parameters_grid[job,]$beta0, beta1 = parameters_grid[job,]$beta1, 
                                    beta2 = parameters_grid[job,]$beta2, n = parameters_grid[job,]$n)
