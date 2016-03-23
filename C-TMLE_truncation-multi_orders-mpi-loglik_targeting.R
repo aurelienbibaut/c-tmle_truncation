@@ -24,8 +24,12 @@ loss <- function(coefficients, outcome, covariates, boolean_subset, offset=0){
 }
 
 # Data generation
-generate_data <- function(R, alpha0, beta0, beta1, beta2, n){
-  L0 <- runif(n, min=-R, max=R)
+generate_data <- function(type = "L0_unif", positivity_parameter, alpha0, beta0, beta1, beta2, n){
+  if(type == "L0_unif") 
+    L0 <- runif(n, min= -positivity_parameter, max= positivity_parameter)
+  else 
+    L0 <- rexp(n, rate = 1 / positivity_parameter) * (1 - 2 * rbinom(n, 1, prob = 0.5))
+  L0 <- runif(n, min = -positivity_parameter, max = positivity_parameter)
   g00 <- expit(alpha0*L0)
   A0 <- rbinom(n, 1, g00)
   PL1givenA0L0 <- expit(beta0+beta1*A0+beta2*L0)
@@ -36,7 +40,7 @@ generate_data <- function(R, alpha0, beta0, beta1, beta2, n){
 # Compute a(delta0) (as defined in write up)
 compute_a_delta0 <- function(delta0, order, n_points = 9, diff_step = NULL, verbose = F){
   
-#   cat("delta0 = ", delta0, " and order = ", order, "\n")
+  #   cat("delta0 = ", delta0, " and order = ", order, "\n")
   
   if(order <= 0) return(list(a_delta0 = 1, deltas = delta0))
   
@@ -179,7 +183,7 @@ C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified
     for(j in 1:length(delta0s)){
       Q1d_bar <- list()
       for(k in 1:K){ # Repeat the fitting procedure for the K splits
-#         cat("i = ", i, ", j = ", j, ", k =", k, "\n")
+        #         cat("i = ", i, ", j = ", j, ", k =", k, "\n")
         result_TMLE_extrapolation <- TMLE_extrapolation(observed_data, splits_Comp[[k]], splits[[k]], d0, orders[i], delta0s[j])
         Q1d_bar <- result_TMLE_extrapolation$Q_bar
         var_IC_test <- result_TMLE_extrapolation$var_D_star_n_test
@@ -187,7 +191,7 @@ C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified
                        (L1[splits[[k]]] - Q1d_bar[splits[[k]]])^2))) browser()
         CV_losses[i, j] <- CV_losses[i, j] + 
           sum((A0[splits[[k]]] == d0(L0[splits[[k]]])) * 
-                        (L1[splits[[k]]] - Q1d_bar[splits[[k]]])^2) + 1 / K * var_IC_test
+                (L1[splits[[k]]] - Q1d_bar[splits[[k]]])^2) + 1 / K * var_IC_test
       }
     }
   }
@@ -213,21 +217,26 @@ orders <- 0:8
 # orders <- 9
 
 # Compute true value of EY^d
-compute_Psi_d_MC <- function(R, alpha0, beta0, beta1, beta2, d0, M){
+compute_Psi_d_MC <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, M){
   # Monte-Carlo estimation of the true value of mean of Yd
-  L0_MC <- runif(M, min=-R, max=R)
+  if(type == "L0_unif") 
+    L0_MC <- runif(M, min= -positivity_parameter, max= positivity_parameter)
+  else 
+    L0_MC <- rexp(M, rate = 1 / positivity_parameter) * (1 - 2 * rbinom(M, 1, prob = 0.5))
   A0_MC <- d0(L0_MC)
   g0_MC <- expit(alpha0 * L0_MC)
   PL1givenA0L0_MC <- expit(beta0 + beta1 * A0_MC + beta2 * L0_MC)
   mean(PL1givenA0L0_MC)
 }
 
-Psi_d0 <- compute_Psi_d_MC(R = 4, alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, alwaysTreated0, M = 1e6)
-
 # Specify the jobs. A job is the computation of a batch. 
 # It is fully characterized by the parameters_tuple_id that the batch corresponds to.
 ns <- c((1:9)*100, c(1:9)*1000, 2*c(1:5)*1e4)
-parameters_grid <- expand.grid(R = 4, alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns)
+parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(2, 4), 
+                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns),
+                         expand.grid(type = "L0_exp", positivity_parameter = c(2, 4), 
+                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns))
+
 batch_size <- 40; nb_batchs <- 500
 jobs <- kronecker(1:nrow(parameters_grid), rep(1, nb_batchs))
 first_seed_batch <- 1:length(jobs) * batch_size
@@ -235,29 +244,42 @@ jobs_permutation <- sample(1:length(jobs))
 jobs <- jobs[jobs_permutation]
 first_seed_batch <- first_seed_batch[jobs_permutation]
 
+# Compute target parameter for each parameters tuple id
+target_parameters <- vector()
+for(i in 1:nrow(parameters_grid))
+  target_parameters[i] <- compute_Psi_d_MC(type = parameters_grid[i, "type"],
+                                           positivity_parameter = parameters_grid[i, "positivity_parameter"],
+                                           alpha0 = parameters_grid[i, "alpha0"], 
+                                           beta0 = parameters_grid[i, "beta0"],
+                                           beta1 = parameters_grid[i, "beta1"],
+                                           beta2 = parameters_grid[i, "beta2"],
+                                           d0 = alwaysTreated0, M = 1e6)
+
 # Save the parameters' grid
-write.table(parameters_grid, file = "parameters_grid.csv", append=F, row.names=F, col.names=T,  sep=",")
+write.table(parameters_grid, file = "parameters_grid.csv", append = F, row.names=F, col.names=T,  sep=",")
 
 # Perform the jobs in parallel
-# library(Rmpi); library(doMPI)
-# 
-# cl <- startMPIcluster(72)
-# registerDoMPI(cl)
+library(Rmpi); library(doMPI)
+
+cl <- startMPIcluster(72)
+registerDoMPI(cl)
 # library(foreach); library(doParallel)
 # cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
 # registerDoParallel(cl)
 
-# results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
-for(i in 1:length(jobs)){
+results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
+# for(i in 1:length(jobs)){
   job <- jobs[i]
   results_batch <- matrix(0, nrow = batch_size, ncol = 8)
   colnames(results_batch) <- c("parameters_tuple_id", "EYd", "seed","Utgtd-untr","Utgtd-extr", "C-TMLE", "order", "delta0")
   for(j in 1:batch_size){
-# job <- 5
     seed <- first_seed_batch[i] + j - 1; set.seed(seed)
-    observed_data <- generate_data(R = parameters_grid[job,]$R, alpha0 = parameters_grid[job,]$alpha0, 
+    observed_data <- generate_data(type = parameters_grid[job,]$type, 
+                                   positivity_parameter = parameters_grid[job,]$positivity_parameter, 
+                                   alpha0 = parameters_grid[job,]$alpha0,
                                    beta0 = parameters_grid[job,]$beta0, beta1 = parameters_grid[job,]$beta1, 
                                    beta2 = parameters_grid[job,]$beta2, n = parameters_grid[job,]$n)
+    
     result_C_TMLE <- list(Utgtd_Psi_n = NA, Psi_n = NA)
     try(result_C_TMLE <- C_TMLE_truncation(observed_data, alwaysTreated0, orders, 
                                            delta0s, Q_misspecified = F))
@@ -265,15 +287,14 @@ for(i in 1:length(jobs)){
     Utgtd_extr_Psi_n <- untargeted_extrapolation(observed_data, alwaysTreated0,
                                                  result_C_TMLE$tp_indices$order,
                                                  result_C_TMLE$tp_indices$delta0, Q_misspecified = F)
-# print(result_C_TMLE)
-# cat("Utgtd_untr_Psi_n=", Utgtd_untr_Psi_n, "\n")
-# cat("Utgtd_extr_Psi_n=", Utgtd_extr_Psi_n, "\n")
-
-    results_batch[j, ] <- c(job, Psi_d0, seed, result_C_TMLE$Psi_n, Utgtd_untr_Psi_n, Utgtd_extr_Psi_n,
+#     print(result_C_TMLE)
+#     cat("Utgtd_untr_Psi_n=", Utgtd_untr_Psi_n, "\n")
+#     cat("Utgtd_extr_Psi_n=", Utgtd_extr_Psi_n, "\n")
+    
+    results_batch[j, ] <- c(job, target_parameters[job], seed, result_C_TMLE$Psi_n, Utgtd_untr_Psi_n, Utgtd_extr_Psi_n,
                             result_C_TMLE$tp_indices$order, result_C_TMLE$tp_indices$delta0)
-  print(j)
   }
-
+  
   if(!file.exists("C-TMLE_multi_orders_intermediate_results.csv")){
     write.table(results_batch, file="C-TMLE_multi_orders_intermediate_results.csv", append=T, row.names=F, col.names=T,  sep=",")
   }else{
