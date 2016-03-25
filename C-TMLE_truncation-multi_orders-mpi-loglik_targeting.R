@@ -291,7 +291,7 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
 #     cat("Utgtd_untr_Psi_n=", Utgtd_untr_Psi_n, "\n")
 #     cat("Utgtd_extr_Psi_n=", Utgtd_extr_Psi_n, "\n")
     
-    results_batch[j, ] <- c(job, target_parameters[job], seed, result_C_TMLE$Psi_n, Utgtd_untr_Psi_n, Utgtd_extr_Psi_n,
+    results_batch[j, ] <- c(job, target_parameters[job], seed, Utgtd_untr_Psi_n, Utgtd_extr_Psi_n, result_C_TMLE$Psi_n,
                             result_C_TMLE$tp_indices$order, result_C_TMLE$tp_indices$delta0)
   }
   
