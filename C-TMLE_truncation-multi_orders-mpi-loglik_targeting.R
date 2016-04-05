@@ -77,7 +77,7 @@ TMLE_truncated_target <- function(observed_data, d0, delta, Q_misspecified = F){
   if(Q_misspecified == FALSE){
     coeffs_Q1d_bar_0n <- optim(par=c(0,0,0), fn=loss, outcome=L1, 
                                covariates=cbind(1,L0,A0), 
-                               boolean_subset=(A0==d0(L0)))$par
+                               boolean_subset = (A0==d0(L0)))$par
     offset_vals_Q1d_bar_0n <- as.vector(cbind(1, L0, d0(L0)) %*% coeffs_Q1d_bar_0n)
   }else{
     offset_vals_Q1d_bar_0n <- rep(logit(mean(L1[A0==d0(L0)])), n)
@@ -90,7 +90,7 @@ TMLE_truncated_target <- function(observed_data, d0, delta, Q_misspecified = F){
   H_delta_setting_A_to_d <- 1 / gn0_delta
   
   # Fit parametric submodel to training set
-  epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = Q1d_bar_0n,
+  epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = offset_vals_Q1d_bar_0n,
                  subset = which(A0 == d0(L0)))$coefficients[1]
   Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
   
@@ -148,7 +148,7 @@ TMLE_extrapolation <- function(observed_data, training_set, test_set, d0, order,
   Q1d_bar_0n <- expit(offset_vals_Q1d_bar_0n)
   
   # Fit parametric submodel to training set
-  epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = Q1d_bar_0n,
+  epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = offset_vals_Q1d_bar_0n,
                  subset = intersect(which(A0 == d0(L0)), training_set))$coefficients[1]
   Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
   
@@ -213,7 +213,8 @@ C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified
 delta0s <- c(1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 2e-1)
 # delta0s <- c(1e-4, 5e-4, (1:9)*1e-3, (1:9)*1e-2, (1:4)*1e-1)
 delta0s <- 1e-4
-orders <- 0:8
+# orders <- 0:8
+orders_sets <- list(0, 1, 2, 3)
 # orders <- 9
 
 # Compute true value of EY^d
@@ -233,9 +234,9 @@ compute_Psi_d_MC <- function(type, positivity_parameter, alpha0, beta0, beta1, b
 # It is fully characterized by the parameters_tuple_id that the batch corresponds to.
 ns <- c((1:9)*100, c(1:9)*1000, 2*c(1:5)*1e4)
 parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(2, 4), 
-                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns),
+                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4),
                          expand.grid(type = "L0_exp", positivity_parameter = c(2, 4), 
-                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns))
+                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4), 
 
 batch_size <- 40; nb_batchs <- 500
 jobs <- kronecker(1:nrow(parameters_grid), rep(1, nb_batchs))
@@ -273,7 +274,7 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   results_batch <- matrix(0, nrow = batch_size, ncol = 8)
   colnames(results_batch) <- c("parameters_tuple_id", "EYd", "seed","Utgtd-untr","Utgtd-extr", "C-TMLE", "order", "delta0")
   for(j in 1:batch_size){
-    seed <- first_seed_batch[i] + j - 1; set.seed(seed)
+#     seed <- first_seed_batch[i] + j - 1; set.seed(seed)
     observed_data <- generate_data(type = parameters_grid[job,]$type, 
                                    positivity_parameter = parameters_grid[job,]$positivity_parameter, 
                                    alpha0 = parameters_grid[job,]$alpha0,
@@ -281,7 +282,7 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
                                    beta2 = parameters_grid[job,]$beta2, n = parameters_grid[job,]$n)
     
     result_C_TMLE <- list(Utgtd_Psi_n = NA, Psi_n = NA)
-    try(result_C_TMLE <- C_TMLE_truncation(observed_data, alwaysTreated0, orders, 
+    try(result_C_TMLE <- C_TMLE_truncation(observed_data, alwaysTreated0, orders_set[[parameters_grid[job,]$orders_set_id]], 
                                            delta0s, Q_misspecified = F))
     Utgtd_untr_Psi_n <- TMLE_truncated_target(observed_data, alwaysTreated0, 0, Q_misspecified = F)
     Utgtd_extr_Psi_n <- untargeted_extrapolation(observed_data, alwaysTreated0,

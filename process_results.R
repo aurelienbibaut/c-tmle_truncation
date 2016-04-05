@@ -1,3 +1,4 @@
+library(plyr)
 setwd('~/aurelien.bibaut@gmail.com/Data_PC/PhD Berkeley/TMLE_truncation/Taylor expansion based estimator/c-tmle_truncation/')
 raw_results <- read.csv('C-TMLE_multi_orders_intermediate_results.csv')
 parameters_grid <- read.csv('parameters_grid.csv')
