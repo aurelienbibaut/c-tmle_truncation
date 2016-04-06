@@ -378,11 +378,16 @@ library(Rmpi); library(doMPI)
 cl <- startMPIcluster(72)
 registerDoMPI(cl)
 
-true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE){
-  true_var_IC_extrapolation <- matrix(nrow = max_order + 1, ncol = length(delta0s))
+library(foreach); library(doParallel)
+cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
+registerDoParallel(cl)
+
+# true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE){
+true_var_IC_extrapolations <- foreach(job = 1:2, .inorder=TRUE) %dopar% {
+  true_var_IC_extrapolation <- matrix(Inf, nrow = max_order + 1, ncol = length(delta0s))
   for(order in 0:max_order)
     for(i in 1:length(delta0s))
-      true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
+      try(true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
                                                                    positivity_parameter = parameters_grid[job, "positivity_parameter"],
                                                                    alpha0 = parameters_grid[job, "alpha0"],
                                                                    beta0 = parameters_grid[job, "beta0"],
@@ -390,7 +395,7 @@ true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TR
                                                                    beta2 = parameters_grid[job, "beta2"],
                                                                    d0 = alwaysTreated0,
                                                                    delta0 = delta0s[i],
-                                                                   order = order)
+                                                                   order = order))
   true_var_IC_extrapolation
 }
 
@@ -398,9 +403,7 @@ true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TR
 write.table(parameters_grid, file = "parameters_grid.csv", append = F, row.names=F, col.names=T,  sep=",")
 
 # Perform the jobs in parallel
-# library(foreach); library(doParallel)
-# cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
-# registerDoParallel(cl)
+
 
 results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   # for(i in 1:length(jobs)){
