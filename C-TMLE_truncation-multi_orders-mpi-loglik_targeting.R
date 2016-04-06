@@ -284,7 +284,6 @@ true_variance_IC <- function(type, positivity_parameter, alpha0, beta0, beta1, b
   # a_dot_inv_g_deltas is \sum_i a_i / g0_{delta_i}(d(w), w)
   a_dot_inv_g_deltas <- Vectorize(function(w)
     sum(a_delta0 * 1 / max(deltas, g0_dw_w(w)) * deltas + (deltas <= g0_dw_w(w)) * g0_dw_w(w)))
-  )
 
 # Define integrand and return its integral
 integrand <- Vectorize(function(w) q_w(w) * (Q0_dw_w(w) - Q0_dw_w(w)^2) * a_dot_inv_g_deltas(w)^2 +
