@@ -284,12 +284,12 @@ true_variance_IC <- function(type, positivity_parameter, alpha0, beta0, beta1, b
   # a_dot_inv_g_deltas is \sum_i a_i / g0_{delta_i}(d(w), w)
   a_dot_inv_g_deltas <- Vectorize(function(w)
     sum(a_delta0 * 1 / max(deltas, g0_dw_w(w)) * deltas + (deltas <= g0_dw_w(w)) * g0_dw_w(w)))
-
-# Define integrand and return its integral
-integrand <- Vectorize(function(w) q_w(w) * (Q0_dw_w(w) - Q0_dw_w(w)^2) * a_dot_inv_g_deltas(w)^2 +
-                         q_w(w) * a_dot_inv_g_deltas(w)^2 * g0_dw_w(w)^2 * Q0_dw_w(w)^2)
-integrate(integrand, lower = -10 * positivity_parameter, upper = 10 * positivity_parameter)$value -
-  sum(a_delta0 * Psi_0_deltas)^2
+  
+  # Define integrand and return its integral
+  integrand <- Vectorize(function(w) q_w(w) * (Q0_dw_w(w) - Q0_dw_w(w)^2) * a_dot_inv_g_deltas(w)^2 +
+                           q_w(w) * a_dot_inv_g_deltas(w)^2 * g0_dw_w(w)^2 * Q0_dw_w(w)^2)
+  integrate(integrand, lower = -10 * positivity_parameter, upper = 10 * positivity_parameter)$value -
+    sum(a_delta0 * Psi_0_deltas)^2
 }
 
 # Compute true variance of influence curve of an extrapolated target parameter by Monte Carlo
@@ -337,12 +337,14 @@ true_variance_IC_MC <- function(type, positivity_parameter, alpha0, beta0, beta1
 # Specify the jobs. A job is the computation of a batch. 
 # It is fully characterized by the parameters_tuple_id that the batch corresponds to.
 ns <- c((1:9)*100, c(1:9)*1000, 2*c(1:5)*1e4)
-parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(2, 4), 
-                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4),
-                         expand.grid(type = "L0_exp", positivity_parameter = c(2, 4), 
-                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4))
+# parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(2, 4), 
+#                                      alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4),
+#                          expand.grid(type = "L0_exp", positivity_parameter = c(2, 4), 
+#                                      alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4))
+parameters_grid <- expand.grid(type = "L0_unif", positivity_parameter = 4,
+                               alpha0 = 1, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:3)
 
-batch_size <- 40; nb_batchs <- 500
+batch_size <- 2; nb_batchs <- 500
 
 jobs <- kronecker(1:nrow(parameters_grid), rep(1, nb_batchs))
 first_seed_batch <- 1:length(jobs) * batch_size
@@ -378,26 +380,29 @@ library(Rmpi); library(doMPI)
 cl <- startMPIcluster(72)
 registerDoMPI(cl)
 
-# library(foreach); library(doParallel)
-# cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
-# registerDoParallel(cl)
+library(foreach); library(doParallel)
+cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
+registerDoParallel(cl)
 
-true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE){
-# true_var_IC_extrapolations <- foreach(job = 1:2, .inorder=TRUE) %dopar% {
+# true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE) {
+true_var_IC_extrapolations <- foreach(job = c(2,4,1,3), .inorder=TRUE) %dopar%  {
   true_var_IC_extrapolation <- matrix(Inf, nrow = max_order + 1, ncol = length(delta0s))
   for(order in 0:max_order)
     for(i in 1:length(delta0s))
       try(true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
-                                                                   positivity_parameter = parameters_grid[job, "positivity_parameter"],
-                                                                   alpha0 = parameters_grid[job, "alpha0"],
-                                                                   beta0 = parameters_grid[job, "beta0"],
-                                                                   beta1 = parameters_grid[job, "beta1"],
-                                                                   beta2 = parameters_grid[job, "beta2"],
-                                                                   d0 = alwaysTreated0,
-                                                                   delta0 = delta0s[i],
-                                                                   order = order))
+                                                                       positivity_parameter = parameters_grid[job, "positivity_parameter"],
+                                                                       alpha0 = parameters_grid[job, "alpha0"],
+                                                                       beta0 = parameters_grid[job, "beta0"],
+                                                                       beta1 = parameters_grid[job, "beta1"],
+                                                                       beta2 = parameters_grid[job, "beta2"],
+                                                                       d0 = alwaysTreated0,
+                                                                       delta0 = delta0s[i],
+                                                                       order = order))
   true_var_IC_extrapolation
 }
+
+save(true_var_IC_extrapolations, file = "true_var_IC_extrapolation.RData")
+print(true_var_IC_extrapolation)
 
 # Save the parameters' grid
 write.table(parameters_grid, file = "parameters_grid.csv", append = F, row.names=F, col.names=T,  sep=",")
