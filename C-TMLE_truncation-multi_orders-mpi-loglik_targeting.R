@@ -154,7 +154,7 @@ TMLE_extrapolation <- function(observed_data, training_set, test_set, d0, order,
   
   # Compute estimator and influence curve
   Psi_n <- mean(Q1d_bar_star_n * (outer(gn0, rep(1, length(deltas))) / gn0_deltas) %*% t(a_delta0))
-  D_star_n <- (outer(gn0, rep(1, length(deltas))) / gn0_deltas) %*% t(a_delta0) #It's actually D_star_n plus its mean
+  D_star_n <- H_delta + (1 / gn0_deltas) %*% t(a_delta0) * gn0 * Q1d_bar_star_n #It's actually D_star_n plus its mean
   var_D_star_n <- var(D_star_n)
   var_D_star_n_test <- var(D_star_n[test_set])
   
@@ -164,7 +164,9 @@ TMLE_extrapolation <- function(observed_data, training_set, test_set, d0, order,
 
 
 # C-TMLE_truncation
-C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified = F, 
+C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified = F,
+                              use_true_variance = F,
+                              true_var_IC_extrapolations = NULL,
                               n_points = 11, diff_step = NULL, K = 5){
   
   L0 <- observed_data$L0; A0 <- observed_data$A0; L1 <- observed_data$L1
@@ -184,14 +186,21 @@ C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified
       Q1d_bar <- list()
       for(k in 1:K){ # Repeat the fitting procedure for the K splits
         #         cat("i = ", i, ", j = ", j, ", k =", k, "\n")
-        result_TMLE_extrapolation <- TMLE_extrapolation(observed_data, splits_Comp[[k]], splits[[k]], d0, orders[i], delta0s[j])
+        result_TMLE_extrapolation <- TMLE_extrapolation(observed_data, splits_Comp[[k]], 
+                                                        splits[[k]], d0, orders[i], delta0s[j])
         Q1d_bar <- result_TMLE_extrapolation$Q_bar
         var_IC_test <- result_TMLE_extrapolation$var_D_star_n_test
         if(is.na(sum((A0[splits[[k]]] == d0(L0[splits[[k]]])) * 
                        (L1[splits[[k]]] - Q1d_bar[splits[[k]]])^2))) browser()
+        
+        if(use_true_variance){
+          var_IC <- true_var_IC_extrapolations[orders[i] + 1, j]
+        }else{ 
+          var_IC <- var_IC_test
+        }
         CV_losses[i, j] <- CV_losses[i, j] + 
           sum((A0[splits[[k]]] == d0(L0[splits[[k]]])) * 
-                (L1[splits[[k]]] - Q1d_bar[splits[[k]]])^2) + 1 / K * var_IC_test
+                (L1[splits[[k]]] - Q1d_bar[splits[[k]]])^2) + 1 / K * var_IC
       }
     }
   }
@@ -209,14 +218,6 @@ C_TMLE_truncation <- function(observed_data, d0, orders, delta0s, Q_misspecified
 # debug(C_TMLE_truncation)
 
 # Simulations -------------------------------------------------------------
-# set.seed(0)
-delta0s <- c(1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 2e-1)
-# delta0s <- c(1e-4, 5e-4, (1:9)*1e-3, (1:9)*1e-2, (1:4)*1e-1)
-delta0s <- 1e-4
-# orders <- 0:8
-orders_sets <- list(0, 1, 2, 3)
-# orders <- 9
-
 # Compute true value of EY^d
 compute_Psi_d_MC <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, M){
   # Monte-Carlo estimation of the true value of mean of Yd
@@ -284,12 +285,12 @@ true_variance_IC <- function(type, positivity_parameter, alpha0, beta0, beta1, b
   a_dot_inv_g_deltas <- Vectorize(function(w)
     sum(a_delta0 * 1 / max(deltas, g0_dw_w(w)) * deltas + (deltas <= g0_dw_w(w)) * g0_dw_w(w)))
   )
-  
-  # Define integrand and return its integral
-  integrand <- Vectorize(function(w) q_w(w) * (Q0_dw_w(w) - Q0_dw_w(w)^2) * a_dot_inv_g_deltas(w)^2 +
-                           q_w(w) * a_dot_inv_g_deltas(w)^2 * g0_dw_w(w)^2 * Q0_dw_w(w)^2)
-  integrate(integrand, lower = -10 * positivity_parameter, upper = 10 * positivity_parameter)$value -
-    sum(a_delta0 * Psi_0_deltas)^2
+
+# Define integrand and return its integral
+integrand <- Vectorize(function(w) q_w(w) * (Q0_dw_w(w) - Q0_dw_w(w)^2) * a_dot_inv_g_deltas(w)^2 +
+                         q_w(w) * a_dot_inv_g_deltas(w)^2 * g0_dw_w(w)^2 * Q0_dw_w(w)^2)
+integrate(integrand, lower = -10 * positivity_parameter, upper = 10 * positivity_parameter)$value -
+  sum(a_delta0 * Psi_0_deltas)^2
 }
 
 # Compute true variance of influence curve of an extrapolated target parameter by Monte Carlo
@@ -324,7 +325,7 @@ true_variance_IC_MC <- function(type, positivity_parameter, alpha0, beta0, beta1
   g0_dw_w_deltas <- sapply(deltas, function(delta) (g0_dw_w > delta) * g0_dw_w + (g0_dw_w <= delta) * delta)
   a_dot_inv_g0_deltas <- (1 / g0_dw_w_deltas) %*% t(a_delta0)
   var_semi_plug_in <-  mean((Q_bar_dw_w - Q_bar_dw_w^2) * g0_dw_w * a_dot_inv_g0_deltas^2 +
-          a_dot_inv_g0_deltas^2 * Q_bar_dw_w^2 * g0_dw_w^2) - sum(a_delta0 * Psi_0_deltas)^2
+                              a_dot_inv_g0_deltas^2 * Q_bar_dw_w^2 * g0_dw_w^2) - sum(a_delta0 * Psi_0_deltas)^2
   
   IC_plus_constant <- (A0 == d0(L0)) * a_dot_inv_g0_deltas * (L1 - Q_bar) + 
     a_dot_inv_g0_deltas * g0_dw_w * Q_bar_dw_w
@@ -343,75 +344,108 @@ parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(
                                      alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4))
 
 batch_size <- 40; nb_batchs <- 500
+
 jobs <- kronecker(1:nrow(parameters_grid), rep(1, nb_batchs))
 first_seed_batch <- 1:length(jobs) * batch_size
 jobs_permutation <- sample(1:length(jobs))
 jobs <- jobs[jobs_permutation]
 first_seed_batch <- first_seed_batch[jobs_permutation]
 
+# Define libraries of orders and delta0s
+# set.seed(0)
+delta0s <- c(1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 2e-1)
+# delta0s <- c(1e-4, 5e-4, (1:9)*1e-3, (1:9)*1e-2, (1:4)*1e-1)
+# delta0s <- 1e-4
+# orders <- 0:8
+max_order <- 5
+orders_sets <- list(0, 1, 2, 3)
+# orders <- 9
+
+
 # # Compute target parameter for each parameters tuple id
-# target_parameters <- vector()
-# for(i in 1:nrow(parameters_grid))
-#   target_parameters[i] <- compute_Psi_d_MC(type = parameters_grid[i, "type"],
-#                                            positivity_parameter = parameters_grid[i, "positivity_parameter"],
-#                                            alpha0 = parameters_grid[i, "alpha0"], 
-#                                            beta0 = parameters_grid[i, "beta0"],
-#                                            beta1 = parameters_grid[i, "beta1"],
-#                                            beta2 = parameters_grid[i, "beta2"],
-#                                            d0 = alwaysTreated0, M = 1e6)
-# 
-# # Save the parameters' grid
-# write.table(parameters_grid, file = "parameters_grid.csv", append = F, row.names=F, col.names=T,  sep=",")
-# 
-# # Perform the jobs in parallel
-# library(Rmpi); library(doMPI)
-# 
-# cl <- startMPIcluster(72)
-# registerDoMPI(cl)
-# # library(foreach); library(doParallel)
-# # cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
-# # registerDoParallel(cl)
-# 
-# results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
-# # for(i in 1:length(jobs)){
-#   job <- jobs[i]
-#   results_batch <- matrix(0, nrow = batch_size, ncol = 8)
-#   colnames(results_batch) <- c("parameters_tuple_id", "EYd", "seed","Utgtd-untr","Utgtd-extr", "C-TMLE", "order", "delta0")
-#   for(j in 1:batch_size){
-# #     seed <- first_seed_batch[i] + j - 1; set.seed(seed)
-#     observed_data <- generate_data(type = parameters_grid[job,]$type, 
-#                                    positivity_parameter = parameters_grid[job,]$positivity_parameter, 
-#                                    alpha0 = parameters_grid[job,]$alpha0,
-#                                    beta0 = parameters_grid[job,]$beta0, beta1 = parameters_grid[job,]$beta1, 
-#                                    beta2 = parameters_grid[job,]$beta2, n = parameters_grid[job,]$n)
-#     
-#     result_C_TMLE <- list(Utgtd_Psi_n = NA, Psi_n = NA)
-#     try(result_C_TMLE <- C_TMLE_truncation(observed_data, alwaysTreated0, orders_set[[parameters_grid[job,]$orders_set_id]], 
-#                                            delta0s, Q_misspecified = F))
-#     Utgtd_untr_Psi_n <- TMLE_truncated_target(observed_data, alwaysTreated0, 0, Q_misspecified = F)
-#     Utgtd_extr_Psi_n <- untargeted_extrapolation(observed_data, alwaysTreated0,
-#                                                  result_C_TMLE$tp_indices$order,
-#                                                  result_C_TMLE$tp_indices$delta0, Q_misspecified = F)
-# #     print(result_C_TMLE)
-# #     cat("Utgtd_untr_Psi_n=", Utgtd_untr_Psi_n, "\n")
-# #     cat("Utgtd_extr_Psi_n=", Utgtd_extr_Psi_n, "\n")
-#     
-#     results_batch[j, ] <- c(job, target_parameters[job], seed, Utgtd_untr_Psi_n, Utgtd_extr_Psi_n, result_C_TMLE$Psi_n,
-#                             result_C_TMLE$tp_indices$order, result_C_TMLE$tp_indices$delta0)
-#   }
-#   
-#   if(!file.exists("C-TMLE_multi_orders_intermediate_results.csv")){
-#     write.table(results_batch, file="C-TMLE_multi_orders_intermediate_results.csv", append=T, row.names=F, col.names=T,  sep=",")
-#   }else{
-#     write.table(results_batch, file="C-TMLE_multi_orders_intermediate_results.csv", append=T, row.names=F, col.names=F,  sep=",")
-#   }
-#   results_batch
-# }
-# 
-# save(results, parameters_grid, file = "C-TMLE_multi_orders_results")
-# 
-# closeCluster(cl)
-# mpi.quit()
+target_parameters <- vector()
+for(i in 1:nrow(parameters_grid))
+  target_parameters[i] <- compute_Psi_d_MC(type = parameters_grid[i, "type"],
+                                           positivity_parameter = parameters_grid[i, "positivity_parameter"],
+                                           alpha0 = parameters_grid[i, "alpha0"], 
+                                           beta0 = parameters_grid[i, "beta0"],
+                                           beta1 = parameters_grid[i, "beta1"],
+                                           beta2 = parameters_grid[i, "beta2"],
+                                           d0 = alwaysTreated0, M = 1e6)
+
+# Compute the variances of the influence curves of the extrapolation
+# for each target parameter
+library(Rmpi); library(doMPI)
+cl <- startMPIcluster(72)
+registerDoMPI(cl)
+
+true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE){
+  true_var_IC_extrapolations[[job]] <- matrix(nrow = max_order + 1, ncol = length(delta0s))
+  for(order in 0:max_order)
+    for(i in 1:length(delta0s))
+      true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
+                                                                   positivity_parameter = parameters_grid[job, "positivity_parameter"],
+                                                                   alpha0 = parameters_grid[job, "alpha0"],
+                                                                   beta0 = parameters_grid[job, "beta0"],
+                                                                   beta1 = parameters_grid[job, "beta1"],
+                                                                   beta2 = parameters_grid[job, "beta2"],
+                                                                   d0 = alwaysTreated0,
+                                                                   delta0 = delta0s[i],
+                                                                   order = order)
+  true_var_IC_extrapolation
+}
+
+# Save the parameters' grid
+write.table(parameters_grid, file = "parameters_grid.csv", append = F, row.names=F, col.names=T,  sep=",")
+
+# Perform the jobs in parallel
+# library(foreach); library(doParallel)
+# cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
+# registerDoParallel(cl)
+
+results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
+  # for(i in 1:length(jobs)){
+  # job <- 1
+  #   job <- jobs[i]
+  results_batch <- matrix(0, nrow = batch_size, ncol = 8)
+  colnames(results_batch) <- c("parameters_tuple_id", "EYd", "seed","Utgtd-untr","Utgtd-extr", "C-TMLE", "order", "delta0")
+  for(j in 1:batch_size){
+    seed <- first_seed_batch[i] + j - 1; #set.seed(seed)
+    observed_data <- generate_data(type = parameters_grid[job,]$type, 
+                                   positivity_parameter = parameters_grid[job,]$positivity_parameter, 
+                                   alpha0 = parameters_grid[job,]$alpha0,
+                                   beta0 = parameters_grid[job,]$beta0, beta1 = parameters_grid[job,]$beta1, 
+                                   beta2 = parameters_grid[job,]$beta2, n = parameters_grid[job,]$n)
+    
+    result_C_TMLE <- list(Utgtd_Psi_n = NA, Psi_n = NA)
+    try(result_C_TMLE <- C_TMLE_truncation(observed_data, alwaysTreated0, orders_sets[[parameters_grid[job,]$orders_set_id]], 
+                                           delta0s, Q_misspecified = F,
+                                           use_true_variance = TRUE,
+                                           true_var_IC_extrapolations = true_var_IC_extrapolations[[job]]))
+    Utgtd_untr_Psi_n <- TMLE_truncated_target(observed_data, alwaysTreated0, 0, Q_misspecified = F)
+    Utgtd_extr_Psi_n <- untargeted_extrapolation(observed_data, alwaysTreated0,
+                                                 result_C_TMLE$tp_indices$order,
+                                                 result_C_TMLE$tp_indices$delta0, Q_misspecified = F)
+    print(result_C_TMLE)
+    cat("Utgtd_untr_Psi_n=", Utgtd_untr_Psi_n, "\n")
+    cat("Utgtd_extr_Psi_n=", Utgtd_extr_Psi_n, "\n")
+    
+    results_batch[j, ] <- c(job, target_parameters[job], seed, Utgtd_untr_Psi_n, Utgtd_extr_Psi_n, result_C_TMLE$Psi_n,
+                            result_C_TMLE$tp_indices$order, result_C_TMLE$tp_indices$delta0)
+  }
+  
+  if(!file.exists("C-TMLE_multi_orders_intermediate_results.csv")){
+    write.table(results_batch, file="C-TMLE_multi_orders_intermediate_results.csv", append=T, row.names=F, col.names=T,  sep=",")
+  }else{
+    write.table(results_batch, file="C-TMLE_multi_orders_intermediate_results.csv", append=T, row.names=F, col.names=F,  sep=",")
+  }
+  results_batch
+}
+
+save(results, parameters_grid, file = "C-TMLE_multi_orders_results")
+
+closeCluster(cl)
+mpi.quit()
 
 
 # # Combine the results together
