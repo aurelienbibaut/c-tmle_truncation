@@ -382,8 +382,8 @@ library(foreach); library(doParallel)
 cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
 registerDoParallel(cl)
 
-# true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE){
-true_var_IC_extrapolations <- foreach(job = 1:2, .inorder=TRUE) %dopar% {
+true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE){
+# true_var_IC_extrapolations <- foreach(job = 1:2, .inorder=TRUE) %dopar% {
   true_var_IC_extrapolation <- matrix(Inf, nrow = max_order + 1, ncol = length(delta0s))
   for(order in 0:max_order)
     for(i in 1:length(delta0s))
