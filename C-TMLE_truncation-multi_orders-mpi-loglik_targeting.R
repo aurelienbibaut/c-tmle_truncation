@@ -378,9 +378,9 @@ library(Rmpi); library(doMPI)
 cl <- startMPIcluster(72)
 registerDoMPI(cl)
 
-library(foreach); library(doParallel)
-cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
-registerDoParallel(cl)
+# library(foreach); library(doParallel)
+# cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
+# registerDoParallel(cl)
 
 true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE){
 # true_var_IC_extrapolations <- foreach(job = 1:2, .inorder=TRUE) %dopar% {
