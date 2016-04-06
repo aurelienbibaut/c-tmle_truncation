@@ -365,14 +365,14 @@ orders_sets <- list(0, 1, 2, 3)
 
 # # Compute target parameter for each parameters tuple id
 target_parameters <- vector()
-for(i in 1:nrow(parameters_grid))
-  target_parameters[i] <- compute_Psi_d_MC(type = parameters_grid[i, "type"],
-                                           positivity_parameter = parameters_grid[i, "positivity_parameter"],
-                                           alpha0 = parameters_grid[i, "alpha0"], 
-                                           beta0 = parameters_grid[i, "beta0"],
-                                           beta1 = parameters_grid[i, "beta1"],
-                                           beta2 = parameters_grid[i, "beta2"],
-                                           d0 = alwaysTreated0, M = 1e6)
+for(i in 1:nrow(parameters_grid)) target_parameters[i] <- NA
+#   target_parameters[i] <- compute_Psi_d_MC(type = parameters_grid[i, "type"],
+#                                            positivity_parameter = parameters_grid[i, "positivity_parameter"],
+#                                            alpha0 = parameters_grid[i, "alpha0"], 
+#                                            beta0 = parameters_grid[i, "beta0"],
+#                                            beta1 = parameters_grid[i, "beta1"],
+#                                            beta2 = parameters_grid[i, "beta2"],
+#                                            d0 = alwaysTreated0, M = 1e6)
 
 # Compute the variances of the influence curves of the extrapolation
 # for each target parameter
@@ -380,29 +380,30 @@ library(Rmpi); library(doMPI)
 cl <- startMPIcluster(72)
 registerDoMPI(cl)
 
-library(foreach); library(doParallel)
-cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
-registerDoParallel(cl)
-
-# true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE) {
-true_var_IC_extrapolations <- foreach(job = c(2,4,1,3), .inorder=TRUE) %dopar%  {
-  true_var_IC_extrapolation <- matrix(Inf, nrow = max_order + 1, ncol = length(delta0s))
-  for(order in 0:max_order)
-    for(i in 1:length(delta0s))
-      try(true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
-                                                                       positivity_parameter = parameters_grid[job, "positivity_parameter"],
-                                                                       alpha0 = parameters_grid[job, "alpha0"],
-                                                                       beta0 = parameters_grid[job, "beta0"],
-                                                                       beta1 = parameters_grid[job, "beta1"],
-                                                                       beta2 = parameters_grid[job, "beta2"],
-                                                                       d0 = alwaysTreated0,
-                                                                       delta0 = delta0s[i],
-                                                                       order = order))
-  true_var_IC_extrapolation
-}
-
-save(true_var_IC_extrapolations, file = "true_var_IC_extrapolation.RData")
-print(true_var_IC_extrapolation)
+# library(foreach); library(doParallel)
+# cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
+# registerDoParallel(cl)
+# 
+# true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE) %dopar% {
+# # true_var_IC_extrapolations <- foreach(job = c(2,4,1,3), .inorder=TRUE) %dopar%  {
+#   true_var_IC_extrapolation <- matrix(Inf, nrow = max_order + 1, ncol = length(delta0s))
+#   for(order in 0:max_order)
+#     for(i in 1:length(delta0s))
+#       try(true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
+#                                                                        positivity_parameter = parameters_grid[job, "positivity_parameter"],
+#                                                                        alpha0 = parameters_grid[job, "alpha0"],
+#                                                                        beta0 = parameters_grid[job, "beta0"],
+#                                                                        beta1 = parameters_grid[job, "beta1"],
+#                                                                        beta2 = parameters_grid[job, "beta2"],
+#                                                                        d0 = alwaysTreated0,
+#                                                                        delta0 = delta0s[i],
+#                                                                        order = order))
+#   true_var_IC_extrapolation
+# }
+# 
+# save(true_var_IC_extrapolations, file = "true_var_IC_extrapolation.RData")
+load("true_var_IC_extrapolation.RData")
+print(true_var_IC_extrapolations)
 
 # Save the parameters' grid
 write.table(parameters_grid, file = "parameters_grid.csv", append = F, row.names=F, col.names=T,  sep=",")
@@ -411,9 +412,9 @@ write.table(parameters_grid, file = "parameters_grid.csv", append = F, row.names
 
 
 results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
-  # for(i in 1:length(jobs)){
-  # job <- 1
-  #   job <- jobs[i]
+#   # for(i in 1:length(jobs)){
+#   job <- 1
+  job <- jobs[i]
   results_batch <- matrix(0, nrow = batch_size, ncol = 8)
   colnames(results_batch) <- c("parameters_tuple_id", "EYd", "seed","Utgtd-untr","Utgtd-extr", "C-TMLE", "order", "delta0")
   for(j in 1:batch_size){
