@@ -379,7 +379,7 @@ cl <- startMPIcluster(72)
 registerDoMPI(cl)
 
 true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE){
-  true_var_IC_extrapolations[[job]] <- matrix(nrow = max_order + 1, ncol = length(delta0s))
+  true_var_IC_extrapolation <- matrix(nrow = max_order + 1, ncol = length(delta0s))
   for(order in 0:max_order)
     for(i in 1:length(delta0s))
       true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
