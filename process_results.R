@@ -6,8 +6,8 @@ parameters_grid <- read.csv('parameters_grid.csv')
 EYd <- raw_results[1, "EYd"]
 
 # Format results matrix: each row is the result of one estimation task (pair of a parameters tuple id and an estimator)
-formatted_results <- rbind(cbind(raw_results[, -(4:6)], Estimate = raw_results[, "Utgtd.untr"], Estimator = "Utgtd.untr"), 
-                           cbind(raw_results[, -(4:6)], Estimate = raw_results[, "Utgtd.extr"], Estimator = "Utgtd.extr"), 
+formatted_results <- rbind(cbind(raw_results[, -(4:6)], Estimate = raw_results[, "Utgtd.untr"], Estimator = "TMLE.EYd"), 
+                           cbind(raw_results[, -(4:6)], Estimate = raw_results[, "Utgtd.extr"], Estimator = "C.TMLE-bis"), 
                            cbind(raw_results[, -(4:6)], Estimate = raw_results[, "C.TMLE"], Estimator = "C.TMLE"))
 
 # An estimation task is the combination of a paramters tuple id and of an estimator
@@ -50,20 +50,22 @@ print(C_TMLE_indices_counts)
 library(ggplot2); library(gridExtra)
 # Plot MSE as a function of n. One plot per target parameter.
 MSE_plots <- list()
-tp_parameters <- unique(parameters_grid[, 1:6])
+tp_parameters <- unique(parameters_grid[, c(1:6, 8)],)
 for(i in 1:nrow(tp_parameters)){
-  pg_row_numbers <- as.numeric(row.names(match_df(parameters_grid[,1:6], tp_parameters[i,])))
+  pg_row_numbers <- as.numeric(row.names(match_df(parameters_grid[, c(1:6, 8)], tp_parameters[i,])))
   
   title <- paste(c("L0 type", as.character(tp_parameters[i, "type"]), 
-                   " and positivity parameter = ", tp_parameters[i, "positivity_parameter"]),
+                   ", positivity parameter = ", tp_parameters[i, "positivity_parameter"],
+                   "order = ", tp_parameters[i, "orders_set_id"] - 1),
                    collapse = " ")
   
-  MSE_plots[[i]] <- ggplot(data = na.omit(subset(bias_var_MSE_df, parameters_tuple_id %in% pg_row_numbers)),
+  MSE_plots[[i]] <- ggplot(data = na.omit(subset(bias_var_MSE_df, parameters_tuple_id %in% pg_row_numbers & n < 1000)),
                                                  aes(x = n, y = mse, colour = Estimator)) + geom_point() + geom_line() +
     ggtitle(title)
 }
 
-grid.arrange(MSE_plots[[1]], MSE_plots[[2]], MSE_plots[[3]], MSE_plots[[4]], nrow = 2)
+grid.arrange(MSE_plots[[1]], MSE_plots[[2]], MSE_plots[[3]], nrow = 2)
+# grid.arrange(MSE_plots[[1]], MSE_plots[[2]], MSE_plots[[3]], MSE_plots[[4]], nrow = 2)
 
 # Plot heatmap of frequencies of indices picked by C-TMLE
 # ggplot(data = as.data.frame(C_TMLE_indices_counts[[2]]), aes(x = delta0, y = order)) + geom_tile(aes(fill = freq))

@@ -336,15 +336,16 @@ true_variance_IC_MC <- function(type, positivity_parameter, alpha0, beta0, beta1
 
 # Specify the jobs. A job is the computation of a batch. 
 # It is fully characterized by the parameters_tuple_id that the batch corresponds to.
-ns <- c((1:9)*100, c(1:9)*1000, 2*c(1:5)*1e4)
-# parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(2, 4), 
-#                                      alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4),
-#                          expand.grid(type = "L0_exp", positivity_parameter = c(2, 4), 
-#                                      alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4))
-parameters_grid <- expand.grid(type = "L0_unif", positivity_parameter = 4,
-                               alpha0 = 1, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:3)
+# ns <- c((1:9)*100, c(1:9)*1000, 2*c(1:5)*1e4)
+ns <- c(50, 100, 150, 200, 250, (3:10) * 100)
+parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(2, 4), 
+                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4),
+                         expand.grid(type = "L0_exp", positivity_parameter = c(2, 4), 
+                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:4))
+# parameters_grid <- expand.grid(type = "L0_unif", positivity_parameter = 4,
+#                                alpha0 = 1, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:3)
 
-batch_size <- 2; nb_batchs <- 500
+batch_size <- 20; nb_batchs <- 1000
 
 jobs <- kronecker(1:nrow(parameters_grid), rep(1, nb_batchs))
 first_seed_batch <- 1:length(jobs) * batch_size
@@ -365,14 +366,14 @@ orders_sets <- list(0, 1, 2, 3)
 
 # # Compute target parameter for each parameters tuple id
 target_parameters <- vector()
-for(i in 1:nrow(parameters_grid)) target_parameters[i] <- NA
-#   target_parameters[i] <- compute_Psi_d_MC(type = parameters_grid[i, "type"],
-#                                            positivity_parameter = parameters_grid[i, "positivity_parameter"],
-#                                            alpha0 = parameters_grid[i, "alpha0"], 
-#                                            beta0 = parameters_grid[i, "beta0"],
-#                                            beta1 = parameters_grid[i, "beta1"],
-#                                            beta2 = parameters_grid[i, "beta2"],
-#                                            d0 = alwaysTreated0, M = 1e6)
+for(i in 1:nrow(parameters_grid)) #target_parameters[i] <- NA
+  target_parameters[i] <- compute_Psi_d_MC(type = parameters_grid[i, "type"],
+                                           positivity_parameter = parameters_grid[i, "positivity_parameter"],
+                                           alpha0 = parameters_grid[i, "alpha0"], 
+                                           beta0 = parameters_grid[i, "beta0"],
+                                           beta1 = parameters_grid[i, "beta1"],
+                                           beta2 = parameters_grid[i, "beta2"],
+                                           d0 = alwaysTreated0, M = 1e6)
 
 # Compute the variances of the influence curves of the extrapolation
 # for each target parameter
