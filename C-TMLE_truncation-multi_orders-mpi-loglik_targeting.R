@@ -385,25 +385,25 @@ registerDoMPI(cl)
 # cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
 # registerDoParallel(cl)
 # 
-# true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE) %dopar% {
-# # true_var_IC_extrapolations <- foreach(job = c(2,4,1,3), .inorder=TRUE) %dopar%  {
-#   true_var_IC_extrapolation <- matrix(Inf, nrow = max_order + 1, ncol = length(delta0s))
-#   for(order in 0:max_order)
-#     for(i in 1:length(delta0s))
-#       try(true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
-#                                                                        positivity_parameter = parameters_grid[job, "positivity_parameter"],
-#                                                                        alpha0 = parameters_grid[job, "alpha0"],
-#                                                                        beta0 = parameters_grid[job, "beta0"],
-#                                                                        beta1 = parameters_grid[job, "beta1"],
-#                                                                        beta2 = parameters_grid[job, "beta2"],
-#                                                                        d0 = alwaysTreated0,
-#                                                                        delta0 = delta0s[i],
-#                                                                        order = order))
-#   true_var_IC_extrapolation
-# }
-# 
-# save(true_var_IC_extrapolations, file = "true_var_IC_extrapolation.RData")
-load("true_var_IC_extrapolation.RData")
+true_var_IC_extrapolations <- foreach(job = 1:nrow(parameters_grid), .inorder=TRUE) %dopar% {
+# true_var_IC_extrapolations <- foreach(job = c(2,4,1,3), .inorder=TRUE) %dopar%  {
+  true_var_IC_extrapolation <- matrix(Inf, nrow = max_order + 1, ncol = length(delta0s))
+  for(order in 0:max_order)
+    for(i in 1:length(delta0s))
+      try(true_var_IC_extrapolation[order + 1, i] <-  true_variance_IC(type = parameters_grid[job, "type"],
+                                                                       positivity_parameter = parameters_grid[job, "positivity_parameter"],
+                                                                       alpha0 = parameters_grid[job, "alpha0"],
+                                                                       beta0 = parameters_grid[job, "beta0"],
+                                                                       beta1 = parameters_grid[job, "beta1"],
+                                                                       beta2 = parameters_grid[job, "beta2"],
+                                                                       d0 = alwaysTreated0,
+                                                                       delta0 = delta0s[i],
+                                                                       order = order))
+  true_var_IC_extrapolation
+}
+
+save(true_var_IC_extrapolations, file = "true_var_IC_extrapolation.RData")
+# load("true_var_IC_extrapolation.RData")
 print(true_var_IC_extrapolations)
 
 # Save the parameters' grid
