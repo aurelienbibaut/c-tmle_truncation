@@ -283,7 +283,7 @@ true_variance_IC <- function(type, positivity_parameter, alpha0, beta0, beta1, b
   
   # a_dot_inv_g_deltas is \sum_i a_i / g0_{delta_i}(d(w), w)
   a_dot_inv_g_deltas <- Vectorize(function(w)
-    sum(a_delta0 * 1 / max(deltas, g0_dw_w(w)) * deltas + (deltas <= g0_dw_w(w)) * g0_dw_w(w)))
+    sum(a_delta0 * 1 / ((g0_dw_w(w) < deltas) * deltas + (deltas <= g0_dw_w(w)) * g0_dw_w(w))))
   
   # Define integrand and return its integral
   integrand <- Vectorize(function(w) q_w(w) * (Q0_dw_w(w) - Q0_dw_w(w)^2) * a_dot_inv_g_deltas(w)^2 +
@@ -315,10 +315,11 @@ true_variance_IC_MC <- function(type, positivity_parameter, alpha0, beta0, beta1
                                                                                delta)))
   
   # Sample a large number of observations from the true data generating mechanism
-  if(type == "L0_unif") 
+  if(type == "L0_unif"){
     L0 <- runif(M, min = -positivity_parameter, max = positivity_parameter)
-  else 
+  }else{
     L0 <- rexp(M, rate = 1 / positivity_parameter) * (1 - 2 * rbinom(M, 1, prob = 0.5))
+  }
   g0 <- expit(alpha0 * L0)
   A0 <- rbinom(n, 1, prob = expit(g0))
   g0_dw_w <- d0(L0) * g0 + (1 - d0(L0)) * (1 - g0)
