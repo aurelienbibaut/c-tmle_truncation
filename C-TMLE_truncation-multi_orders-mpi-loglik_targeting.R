@@ -288,8 +288,14 @@ true_variance_IC <- function(type, positivity_parameter, alpha0, beta0, beta1, b
   # Define integrand and return its integral
   integrand <- Vectorize(function(w) q_w(w) * (Q0_dw_w(w) - Q0_dw_w(w)^2) * a_dot_inv_g_deltas(w)^2 +
                            q_w(w) * a_dot_inv_g_deltas(w)^2 * g0_dw_w(w)^2 * Q0_dw_w(w)^2)
-  integrate(integrand, lower = -10 * positivity_parameter, upper = 10 * positivity_parameter)$value -
+  var_IC <- integrate(integrand, lower = -10 * positivity_parameter, upper = 10 * positivity_parameter)$value -
     sum(a_delta0 * Psi_0_deltas)^2
+  
+  if(var_IC < 0){
+    return(Inf)
+  }else{
+    return(var_IC)
+  }
 }
 
 # Compute true variance of influence curve of an extrapolated target parameter by Monte Carlo
@@ -325,11 +331,14 @@ true_variance_IC_MC <- function(type, positivity_parameter, alpha0, beta0, beta1
   a_dot_inv_g0_deltas <- (1 / g0_dw_w_deltas) %*% t(a_delta0)
   var_semi_plug_in <-  mean((Q_bar_dw_w - Q_bar_dw_w^2) * g0_dw_w * a_dot_inv_g0_deltas^2 +
                               a_dot_inv_g0_deltas^2 * Q_bar_dw_w^2 * g0_dw_w^2) - sum(a_delta0 * Psi_0_deltas)^2
-  
+
   IC_plus_constant <- (A0 == d0(L0)) * a_dot_inv_g0_deltas * (L1 - Q_bar) + 
     a_dot_inv_g0_deltas * g0_dw_w * Q_bar_dw_w
   
   var_MC <- var(IC_plus_constant)
+  
+  if(var_semi_plug_in < 0) var_semi_plug_in <- Inf
+  if(var_MC < 0) var_MC <- Inf
   
   list(var_MC = var_MC, var_semi_plug_in = var_semi_plug_in)
 }
