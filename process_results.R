@@ -11,7 +11,8 @@ formatted_results <- rbind(cbind(raw_results[, -(4:6)], Estimate = raw_results[,
                            cbind(raw_results[, -(4:6)], Estimate = raw_results[, "C.TMLE"], Estimator = "C.TMLE"))
 
 # An estimation task is the combination of a paramters tuple id and of an estimator
-estimation_tasks <- expand.grid(parameters_tuple_id = 1:nrow(parameters_grid), Estimator = unique(formatted_results[, "Estimator"]))
+estimation_tasks <- expand.grid(parameters_tuple_id = 1:nrow(parameters_grid), 
+                                Estimator = unique(formatted_results[, "Estimator"]))
 
 bias_var_MSE_matrix <- matrix(nrow = nrow(estimation_tasks), ncol = 6)
 colnames(bias_var_MSE_matrix) <- c("parameters_tuple_id", "Estimator", "bias", "var", "mse", "n")
@@ -49,23 +50,42 @@ print(C_TMLE_indices_counts)
 # Plots
 library(ggplot2); library(gridExtra)
 # Plot MSE as a function of n. One plot per target parameter.
-MSE_plots <- list()
+MSE_plots <- list(); delta0s_counts <- list(); delta0s_heatmaps <- list(); delta0s_frequencies <- list()
 tp_parameters <- unique(parameters_grid[, c(1:6, 8)],)
 for(i in 1:nrow(tp_parameters)){
   pg_row_numbers <- as.numeric(row.names(match_df(parameters_grid[, c(1:6, 8)], tp_parameters[i,])))
   
   title <- paste(c("L0 type", as.character(tp_parameters[i, "type"]), 
                    ", positivity parameter = ", tp_parameters[i, "positivity_parameter"],
-                   "order = ", tp_parameters[i, "orders_set_id"] - 1),
+                   "\norder = ", tp_parameters[i, "orders_set_id"] - 1),
                    collapse = " ")
   
-  MSE_plots[[i]] <- ggplot(data = na.omit(subset(bias_var_MSE_df, parameters_tuple_id %in% pg_row_numbers & n < 1000)),
+  data_for_current_plot = na.omit(subset(bias_var_MSE_df, parameters_tuple_id %in% pg_row_numbers & n < 1000))
+  MSE_plots[[i]] <- ggplot(data = data_for_current_plot,
                                                  aes(x = n, y = mse, colour = Estimator)) + geom_point() + geom_line() +
-    ggtitle(title)
+    ggtitle(title) + ylim(max(min(data_for_current_plot$mse), 0), 
+                          min(max(data_for_current_plot$mse[data_for_current_plot$mse <= 1]), 1))
+  
+  data_for_delta0s_heatmap <- na.omit(subset(raw_results, parameters_tuple_id %in% pg_row_numbers))
+  data_for_delta0s_heatmap = cbind(data_for_delta0s_heatmap,
+                                    n = parameters_grid[as.numeric(as.character(data_for_delta0s_heatmap[, "parameters_tuple_id"])), "n"])
+
+  delta0s_counts[[i]] <- count(data_for_delta0s_heatmap, c("n", "delta0"))
+  delta0s_frequencies[[i]] <- delta0s_counts[[i]]
+  for(j in 1:nrow(delta0s_counts[[i]]))
+    delta0s_frequencies[[i]][j, "freq"] <- delta0s_counts[[i]][j, "freq"] / sum(subset(delta0s_counts[[i]], 
+                                                n == delta0s_counts[[i]][j, "n"],
+                                                select = freq))
+  delta0s_heatmaps[[i]] <- ggplot(data = as.data.frame(delta0s_frequencies[[i]]), aes(x = factor(delta0), y = factor(n))) + 
+    geom_tile(aes(fill = freq)) + ggtitle(title)
 }
 
-grid.arrange(MSE_plots[[1]], MSE_plots[[2]], MSE_plots[[3]], nrow = 2)
-# grid.arrange(MSE_plots[[1]], MSE_plots[[2]], MSE_plots[[3]], MSE_plots[[4]], nrow = 2)
+# grid.arrange(MSE_plots[[1]], MSE_plots[[2]], MSE_plots[[3]], nrow = 2)
+for(i in 0:3)
+  grid.arrange(MSE_plots[[4*i + 1]], MSE_plots[[4*i + 2]], MSE_plots[[4*i + 3]], MSE_plots[[4*i + 4]], nrow = 2)
 
+for(i in 0:3)
+  grid.arrange(delta0s_heatmaps[[4*i + 1]], delta0s_heatmaps[[4*i + 2]], 
+               delta0s_heatmaps[[4*i + 3]], delta0s_heatmaps[[4*i + 4]], nrow = 2)
 # Plot heatmap of frequencies of indices picked by C-TMLE
 # ggplot(data = as.data.frame(C_TMLE_indices_counts[[2]]), aes(x = delta0, y = order)) + geom_tile(aes(fill = freq))

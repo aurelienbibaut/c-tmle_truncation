@@ -241,7 +241,7 @@ compute_Psi_0_delta <- function(type, positivity_parameter, alpha0, beta0, beta1
   
   # q_w is q_w(w)
   if(type == "L0_exp"){
-    q_w <- function(w) 1 / 2 * 1 / positivity_parameter * exp(-abs(w) / posititivity_parameter)
+    q_w <- function(w) 1 / 2 * 1 / positivity_parameter * exp(-abs(w) / positivity_parameter)
   }else{
     q_w <- Vectorize(function(w) 1 / (2 * positivity_parameter) * (abs(w) <= positivity_parameter))
   }
@@ -276,7 +276,7 @@ true_variance_IC <- function(type, positivity_parameter, alpha0, beta0, beta1, b
   
   # q_w is q_w(w)
   if(type == "L0_exp"){
-    q_w <- function(w) 1 / 2 * 1 / positivity_parameter * exp(-abs(w) / posititivity_parameter)
+    q_w <- function(w) 1 / 2 * 1 / positivity_parameter * exp(-abs(w) / positivity_parameter)
   }else{
     q_w <- Vectorize(function(w) 1 / (2 * positivity_parameter) * (abs(w) <= positivity_parameter))
   }
