@@ -5,14 +5,20 @@ parameters_grid <- read.csv('parameters_grid.csv')
 
 EYd <- raw_results[1, "EYd"]
 
+# Filter out absurd results like the ones for which there is a EYd out of [0,1]. Report them
+absurd_results_ids <- which(raw_results[, "EYd"] < 0 | raw_results[, "EYd"] > 1)
+cat("The following raw results had an absurd value for EYd (i.e. not in [0,1]):\n")
+print(absurd_results_ids)
+raw_results <- raw_results[-absurd_results_ids, ]
+
+
 # Format results matrix: each row is the result of one estimation task (pair of a parameters tuple id and an estimator)
 formatted_results <- rbind(cbind(raw_results[, -(4:6)], Estimate = raw_results[, "Utgtd.untr"], Estimator = "TMLE.EYd"), 
                            cbind(raw_results[, -(4:6)], Estimate = raw_results[, "Utgtd.extr"], Estimator = "C.TMLE-bis"), 
                            cbind(raw_results[, -(4:6)], Estimate = raw_results[, "C.TMLE"], Estimator = "C.TMLE"))
 
 # An estimation task is the combination of a paramters tuple id and of an estimator
-estimation_tasks <- expand.grid(parameters_tuple_id = 1:nrow(parameters_grid), 
-                                Estimator = unique(formatted_results[, "Estimator"]))
+estimation_tasks <- expand.grid(parameters_tuple_id = 1:nrow(parameters_grid), Estimator = unique(formatted_results[, "Estimator"]))
 
 bias_var_MSE_matrix <- matrix(nrow = nrow(estimation_tasks), ncol = 6)
 colnames(bias_var_MSE_matrix) <- c("parameters_tuple_id", "Estimator", "bias", "var", "mse", "n")
@@ -42,9 +48,12 @@ bias_var_MSE_df <- transform(bias_var_MSE_matrix, parameters_tuple_id = as.numer
 
 # TMLE indices counts for each n
 C_TMLE_indices_counts <- list()
-for(parameters_tuple_id in 1:nrow(parameters_grid))
-  C_TMLE_indices_counts[[parameters_tuple_id]] <- count(raw_results[raw_results[, "parameters_tuple_id"] == parameters_tuple_id, ], 
+for(i in 1:nrow(parameters_grid))
+#   C_TMLE_indices_counts[[parameters_tuple_id]] <- count(raw_results[raw_results[, "parameters_tuple_id"] == parameters_tuple_id, ], 
+#                                                         c("order", "delta0"))
+  C_TMLE_indices_counts[[i]] <- count(subset(raw_results, parameters_tuple_id == i), 
                                                         c("order", "delta0"))
+
 print(C_TMLE_indices_counts)
 
 # Plots

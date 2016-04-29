@@ -9,7 +9,7 @@ logit <- function(x){
 }
 
 expit<-function(x){
-  result<-exp(x)/(1+exp(x))
+  result <- exp(x)/(1+exp(x))
   result[is.nan(result)] <- 1
   result
 }
