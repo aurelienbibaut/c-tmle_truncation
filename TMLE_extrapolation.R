@@ -244,8 +244,8 @@ registerDoMPI(cl)
 
 results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   # for(i in 1:length(jobs)){
-    job <- 1
-#   job <- jobs[i]
+#     job <- 1
+  job <- jobs[i]
   results_TMLE_extrapolation <- vector(); results_TMLE_extrapolation_bis <- vector()
   for(j in 1:n_samples_per_job){
     seed <- first_seed_batch[i] + j - 1; #set.seed(seed)
@@ -287,9 +287,9 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   }
   
   if(!file.exists("TMLE_extrapolations_intermediate_results.csv")){
-    write.table(iterations_results, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=T,  sep=",")
+    write.table(iteration_results, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=T,  sep=",")
   }else{
-    write.table(iterations_results, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=F,  sep=",")
+    write.table(iteration_results, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=F,  sep=",")
   }
   iterations_results
 }
