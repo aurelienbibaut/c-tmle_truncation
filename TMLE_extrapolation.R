@@ -212,14 +212,10 @@ parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(
 # parameters_grid <- expand.grid(type = "L0_unif", positivity_parameter = 4,
 #                                alpha0 = 1, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:3)
 
-batch_size <- 1000; nb_batchs <- 10
-
-jobs <- kronecker(1:nrow(parameters_grid), rep(1, nb_batchs))
+jobs <- sample(1:nrow(parameters_grid))
 first_seed_batch <- 1:length(jobs) * batch_size
-jobs_permutation <- sample(1:length(jobs))
-jobs <- jobs[jobs_permutation]
 first_seed_batch <- first_seed_batch[jobs_permutation]
-
+n_samples_per_job <- 1e4
 
 # # Compute target parameter for each parameters tuple id
 target_parameters <- vector()
@@ -245,14 +241,13 @@ write.table(parameters_grid, file = "parameters_grid_extrapolations.csv", append
 library(Rmpi); library(doMPI)
 cl <- startMPIcluster(72)
 registerDoMPI(cl)
-# 
+
 results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   # for(i in 1:length(jobs)){
   #   job <- 1
   job <- jobs[i]
-  results_batch <- matrix(0, nrow = batch_size, ncol = 4)
-  colnames(results_batch) <- c("parameters_tuple_id", "EYd", "TMLE_extrapolation", "TMLE_extrapolation_bis")
-  system.time(for(j in 1:batch_size){
+  results_TMLE_extrapolation <- vector(); results_TMLE_extrapolation_bis <- vector()
+  for(j in 1:n_samples_per_job){
     seed <- first_seed_batch[i] + j - 1; #set.seed(seed)
     observed_data <- generate_data(type = parameters_grid[job,]$type, 
                                    positivity_parameter = parameters_grid[job,]$positivity_parameter, 
@@ -260,7 +255,6 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
                                    beta0 = parameters_grid[job,]$beta0, beta1 = parameters_grid[job,]$beta1, 
                                    beta2 = parameters_grid[job,]$beta2, n = parameters_grid[job,]$n)
     
-    result_extrapolations <- list(result_TMLE_extrapolation = NA, result_TMLE_extrapolation_bis = NA)
     training_set <- 1:parameters_grid[job,]$n
     test_set <- NULL
     try(result_TMLE_extrapolation <- TMLE_extrapolation(observed_data, training_set, 
@@ -273,6 +267,9 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
                                                                 parameters_grid[job,]$order,
                                                                 parameters_grid[job,]$delta0,
                                                                 Q_misspecified = F))
+    
+    results_TMLE_extrapolation <- c(results_TMLE_extrapolation, result_TMLE_extrapolation)
+    results_TMLE_extrapolation_bis <- c(results_TMLE_extrapolation_bis, result_TMLE_extrapolation_bis)
     #cat("TMLE_extrapolation=", result_TMLE_extrapolation, "\n")
     #cat("TMLE_extrapolation_bis=", result_TMLE_extrapolation_bis, "\n")
     
@@ -283,15 +280,18 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
                                           & beta1 == parameters_grid[job,]$beta1
                                           & beta2 == parameters_grid[job,]$beta2, select = target_parameters))
     
-    results_batch[j, ] <- c(job, target_parameter, result_TMLE_extrapolation, result_TMLE_extrapolation_bis)
-  })
+    iteration_results <- matrix(nrow = 2, ncol = 4)
+    colnames(iteration_results) <- c("parameters_tuple_id", "estimator", "bias", "var")
+    iterations_results[1, ] <- c(job, "TMLE.extr", abs(mean(results_TMLE_extrapolation - target_parameter), var(results_TMLE_extrapolation)))
+    iterations_results[2, ] <- c(job, "TMLE.extr.bis", abs(mean(results_TMLE_extrapolation_bis - target_parameter), var(results_TMLE_extrapolation_bis)))
+  }
   
   if(!file.exists("TMLE_extrapolations_intermediate_results.csv")){
-    write.table(results_batch, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=T,  sep=",")
+    write.table(iterations_results, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=T,  sep=",")
   }else{
-    write.table(results_batch, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=F,  sep=",")
+    write.table(iterations_results, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=F,  sep=",")
   }
-  results_batch
+  iterations_results
 }
 
 save(results, parameters_grid, file = "TMLE_extrapolations_results")
