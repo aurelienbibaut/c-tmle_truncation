@@ -100,7 +100,7 @@ TMLE_truncated_target <- function(observed_data, d0, delta, Q_misspecified = F){
 
 # Untargeted extrapolation
 TMLE_extrapolation_bis <- function(observed_data, d0, order, delta0, Q_misspecified = F,
-                                     n_points = 11, diff_step = NULL){
+                                   n_points = 11, diff_step = NULL){
   # Compute a_delta0 as defined in write-up
   result_compute_a_delta0 <- compute_a_delta0(delta0, order = order, n_points, diff_step, verbose=F)
   a_delta0 <- result_compute_a_delta0$a_delta0
@@ -226,13 +226,13 @@ target_parameters <- vector()
 tp_params <- unique(parameters_grid[,c("type", "positivity_parameter", "alpha0", "beta0", "beta1", "beta2")])
 for(i in 1:nrow(tp_params)) #target_parameters[i] <- NA
   target_parameters[i] <- compute_Psi_0_delta(type = tp_params[i, "type"],
-                                           positivity_parameter = tp_params[i, "positivity_parameter"],
-                                           alpha0 = tp_params[i, "alpha0"], 
-                                           beta0 = tp_params[i, "beta0"],
-                                           beta1 = tp_params[i, "beta1"],
-                                           beta2 = tp_params[i, "beta2"],
-                                           d0 = alwaysTreated0,
-                                           delta = tp_params[i, "delta0"])
+                                              positivity_parameter = tp_params[i, "positivity_parameter"],
+                                              alpha0 = tp_params[i, "alpha0"], 
+                                              beta0 = tp_params[i, "beta0"],
+                                              beta1 = tp_params[i, "beta1"],
+                                              beta2 = tp_params[i, "beta2"],
+                                              d0 = alwaysTreated0,
+                                              delta = tp_params[i, "delta0"])
 target_parameters <- cbind(tp_params, target_parameters)
 
 # Save the parameters' grid
@@ -248,8 +248,8 @@ registerDoMPI(cl)
 # 
 results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   # for(i in 1:length(jobs)){
-#   job <- 1
-#   job <- jobs[i]
+  #   job <- 1
+  job <- jobs[i]
   results_batch <- matrix(0, nrow = batch_size, ncol = 4)
   colnames(results_batch) <- c("parameters_tuple_id", "EYd", "TMLE_extrapolation", "TMLE_extrapolation_bis")
   system.time(for(j in 1:batch_size){
@@ -277,11 +277,11 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
     #cat("TMLE_extrapolation_bis=", result_TMLE_extrapolation_bis, "\n")
     
     target_parameter <- as.numeric(subset(target_parameters, type == parameters_grid[job,]$type
-                               & positivity_parameter ==  parameters_grid[job,]$positivity_parameter
-                               & alpha0 == parameters_grid[job,]$alpha0
-                               & beta0 == parameters_grid[job,]$beta0
-                               & beta1 == parameters_grid[job,]$beta1
-                               & beta2 == parameters_grid[job,]$beta2, select = target_parameters))
+                                          & positivity_parameter ==  parameters_grid[job,]$positivity_parameter
+                                          & alpha0 == parameters_grid[job,]$alpha0
+                                          & beta0 == parameters_grid[job,]$beta0
+                                          & beta1 == parameters_grid[job,]$beta1
+                                          & beta2 == parameters_grid[job,]$beta2, select = target_parameters))
     
     results_batch[j, ] <- c(job, target_parameter, result_TMLE_extrapolation, result_TMLE_extrapolation_bis)
   })
