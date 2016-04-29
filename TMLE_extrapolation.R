@@ -213,8 +213,6 @@ parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(
 #                                alpha0 = 1, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:3)
 
 jobs <- sample(1:nrow(parameters_grid))
-first_seed_batch <- 1:length(jobs) * batch_size
-first_seed_batch <- first_seed_batch[jobs_permutation]
 n_samples_per_job <- 1e4
 
 # # Compute target parameter for each parameters tuple id
@@ -248,7 +246,6 @@ results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
   job <- jobs[i]
   results_TMLE_extrapolation <- vector(); results_TMLE_extrapolation_bis <- vector()
   for(j in 1:n_samples_per_job){
-    seed <- first_seed_batch[i] + j - 1; #set.seed(seed)
     observed_data <- generate_data(type = parameters_grid[job,]$type, 
                                    positivity_parameter = parameters_grid[job,]$positivity_parameter, 
                                    alpha0 = parameters_grid[job,]$alpha0,
