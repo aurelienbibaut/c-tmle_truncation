@@ -8,7 +8,7 @@ logit <- function(x){
   log(x/(1-x))
 }
 
-expit<-function(x){
+expit <- function(x){
   result <- exp(x)/(1+exp(x))
   result[is.nan(result)] <- 1
   result
@@ -47,7 +47,7 @@ compute_a_delta0 <- function(delta0, order, n_points = 9, diff_step = NULL, verb
   if(n_points %% 2 == 0) n_points <- n_points + 1
   
   if(is.null(diff_step)){
-    if(delta0 - (n_points-1)/2*1e-3 > 0){ diff_step=1e-3 }else{ diff_step = delta0/(n_points-1) }
+    if(delta0 - (n_points-1)/2*1e-3 > 0){ diff_step=1e-3 }else{ diff_step = delta0 / (n_points-1) }
   }
   bw <- diff_step * 2
   deltas <- delta0 + (1:n_points-1-(n_points-1) / 2)*diff_step
