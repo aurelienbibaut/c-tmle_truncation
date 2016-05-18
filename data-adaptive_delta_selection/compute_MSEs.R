@@ -44,9 +44,9 @@ foreach(i = 1:length(jobs)) %dopar% {
   iteration_result <- t(c(estimation_tasks[job, ]$n, estimation_tasks[job, ]$delta))
   colnames(iteration_result) <- c("n", "delta", "MSE")
   
-  if(!file.exists("MSE(n,delta).csv")){
-    write.table(iteration_result, file = "MSE(n,delta).csv", append = T, row.names = F, col.names = T,  sep = ",")
+  if(!file.exists("MSE_n,delta.csv")){
+    write.table(iteration_result, file = "MSE_n,delta.csv", append = T, row.names = F, col.names = T,  sep = ",")
   }else{
-    write.table(iteration_result, file = "MSE(n,delta).csv", append = T, row.names = F, col.names = F,  sep = ",")
+    write.table(iteration_result, file = "MSE_n,delta.csv", append = T, row.names = F, col.names = F,  sep = ",")
   }
 }
