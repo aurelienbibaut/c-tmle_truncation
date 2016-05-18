@@ -13,11 +13,11 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 
 # Target parameter definition
 type <- "L0_exp"; positivity_parameter <- 2; alpha0 <- 2
-beta0 <- -3; beta1 <- 1.5 <- beta2 <-  1
+beta0 <- -3; beta1 <- 1.5; beta2 <-  1
 d0 <- alwaysTreated0
 
 # Simulation parameters
-M <- 1e4 # Number of data generations per (n, delta)
+M <- 1e1 # Number of data generations per (n, delta)
 ns <- c(1e2, 5e2, 1e3, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6, 5e6)
 deltas <- c(seq(from = 0, to = 1e-2, length = 100),
             seq(from = 1e-2, to = 2e-1, length = 100))
@@ -28,12 +28,13 @@ jobs <- sample(1:nrow(estimation_tasks)) # A job is an estimation task id
 EYd <- compute_true_Psi0_delta(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, delta = 0)
 
 # Perform the simulations
-library(Rmpi); library(doMPI)
-
-cl <- startMPIcluster(72)
-registerDoMPI(cl)
+# library(Rmpi); library(doMPI)
+# 
+# cl <- startMPIcluster(72)
+# registerDoMPI(cl)
 
 foreach(i = 1:length(jobs)) %dopar% {
+# i <- 1
   job <- jobs[i]
   estimates <- vector()
   for(m in 1:M){
@@ -41,7 +42,7 @@ foreach(i = 1:length(jobs)) %dopar% {
     estimates <- c(estimates, TMLE_truncated_target(observed_data, d0, estimation_tasks[job, ]$delta, Q_misspecified = F))
   }
   MSE <- mean((estimates - EYd)^2)
-  iteration_result <- t(c(estimation_tasks[job, ]$n, estimation_tasks[job, ]$delta))
+  iteration_result <- t(c(estimation_tasks[job, ]$n, estimation_tasks[job, ]$delta, MSE))
   colnames(iteration_result) <- c("n", "delta", "MSE")
   
   if(!file.exists("MSE_n,delta.csv")){
