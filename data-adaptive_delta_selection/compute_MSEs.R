@@ -27,11 +27,11 @@ jobs <- sample(1:nrow(estimation_tasks)) # A job is an estimation task id
 # Compute the true EYd
 EYd <- compute_true_Psi0_delta(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, delta = 0)
 
-# Perform the simulations
-# library(Rmpi); library(doMPI)
-# 
-# cl <- startMPIcluster(72)
-# registerDoMPI(cl)
+Perform the simulations
+library(Rmpi); library(doMPI)
+
+cl <- startMPIcluster(72)
+registerDoMPI(cl)
 
 foreach(i = 1:length(jobs)) %dopar% {
 # i <- 1
