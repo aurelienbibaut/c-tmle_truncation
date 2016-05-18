@@ -78,24 +78,46 @@ compute_tps_derivatives_var_ICs <- function(type, positivity_parameter, alpha0, 
 }
 
 # Compute a(delta0) (as defined in write up)
-compute_a_delta0 <- function(delta0, order, n_points = 9, diff_step = NULL, verbose = F){
+# compute_a_delta0 <- function(delta0, order, n_points = 9, diff_step = NULL, verbose = F){
+#   if(order <= 0) return(list(a_delta0 = 1, deltas = delta0))
+#   
+#   if(n_points %% 2 == 0) n_points <- n_points + 1
+#   
+#   # if(is.null(diff_step)){
+#   #   if(delta0 - (n_points-1)/2*5e-3 > 0){ diff_step=5e-3 }else{ diff_step = delta0 / (n_points-1) }
+#   # }
+#   diff_step <- 2 / (n - 1) * delta0^1.6
+#   bw <- diff_step * 2
+#   deltas <- delta0 + (1:n_points - (n_points + 1) / 2)*diff_step
+#   weights <- exp(-(deltas-delta0)^2 / (2*bw^2)) / sqrt(2*pi*bw^2)
+#   
+#   X <- outer(deltas - delta0, 0:order, "^")
+#   
+#   A <- apply(diag(nrow(X)), 2, function(C) lm.wfit(X, C, weights)$coefficients)
+#   a_delta0 <- (-delta0)^(0:order) %*% A
+#   list(a_delta0 = a_delta0, differentiator = A, deltas = deltas)
+# }
+
+compute_a_delta0 <- function(delta0, order){
   if(order <= 0) return(list(a_delta0 = 1, deltas = delta0))
   
-  if(n_points %% 2 == 0) n_points <- n_points + 1
+  if(delta0 / 2 < 5e-3){
+    h <- delta0 / 2
+  }else{
+    h <- 5e-3
+  }
   
-  # if(is.null(diff_step)){
-  #   if(delta0 - (n_points-1)/2*5e-3 > 0){ diff_step=5e-3 }else{ diff_step = delta0 / (n_points-1) }
-  # }
-  diff_step <- 2 / (n - 1) * delta0^1.4
-  bw <- diff_step * 2
-  deltas <- delta0 + (1:n_points - (n_points + 1) / 2)*diff_step
-  weights <- exp(-(deltas-delta0)^2 / (2*bw^2)) / sqrt(2*pi*bw^2)
-  
-  X <- outer(deltas - delta0, 0:order, "^")
-  
-  A <- apply(diag(nrow(X)), 2, function(C) lm.wfit(X, C, weights)$coefficients)
-  a_delta0 <- (-delta0)^(0:order) %*% A
-  list(a_delta0 = a_delta0, differentiator = A, deltas = deltas)
+  if(order == 1){
+    diff1 <- c(-1 / (2 * h), 0, 1 / (2 * h))
+    a_delta0 <- t(c(0, 1, 0) - delta0 * diff1)
+    return(list(a_delta0 = a_delta0, deltas = c(delta0 - h, delta0, delta0 + h)))
+  }
+  if(order == 2){
+    diff1 <- c(-1 / (2 * h), 0, 1 / (2 * h))
+    diff2 <- c(1 / h^2, -2 / h^2, 1 / h^2)
+    a_delta_0 <- t(c(0, 1, 0) - delta0 * diff1 + delta0^2 / 2 * diff2)
+    return(list(a_delta0 = a_delta_0, deltas = c(delta0 - h, delta0, delta0 + h)))
+  }
 }
 
 compute_extrapolation <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, 
@@ -142,7 +164,8 @@ library(numDeriv)
 
 
 # Plot derivatives
-deltas <- seq(from = 1e-5, to = 0.4, length = 200)
+deltas <- c(seq(from = 1e-6, to = 1e-2, length = 100),
+            seq(from = 1e-2, to = 4e-1, length = 100))
 Psi0_vals <- sapply(deltas, Psi0)
 WLS1_vals <- sapply(deltas, WLS1)
 WLS2_vals <- sapply(deltas, WLS2)
@@ -158,9 +181,22 @@ first_order_extr <- Psi0_vals - deltas * first_derivative_vals
 middle_combination <- Psi0_vals - deltas / 2 * first_derivative_vals
 second_order_extr <- Psi0_vals - deltas * first_derivative_vals + deltas^2 / 2 * second_derivative_vals
 
+# MSEs
+n <- 1e5
+MSE_order0 <- (Psi0_vals - Psi0_vals[1])^2 + 1 / n * sigma0_vals^2
+MSE_order1 <- (first_order_extr - Psi0_vals[1])^2 + 1 / n * sigma1_vals^2
+
+delta_max = 0.2
+plot(deltas, MSE_order0, type = "l", col = "green", xlim = c(0, delta_max), ylim = c(0, max(MSE_order0[1],
+                                                                                      MSE_order1[1])))
+abline(min(MSE_order0[which(deltas < delta_max)]), 0, col = "green")
+abline(min(MSE_order1[which(deltas < delta_max)]), 0, col = "blue")
+lines(deltas, MSE_order1, col = "blue")
+
+# Plots 
 plot(deltas, Psi0_vals, ylim=c(0.28, 0.3))
 lines(deltas, first_order_extr)
-lines(deltas, middle_combination)
+# lines(deltas, middle_combination)
 abline(a = Psi0_vals[1], b = 0)
 
 lines(deltas, Psi0_vals + 1.96 * sigma0_vals / sqrt(1e5), col = "green")
@@ -169,13 +205,9 @@ lines(deltas, Psi0_vals - 1.96 * sigma0_vals / sqrt(1e5), col = "green")
 lines(deltas, first_order_extr + 1.96 * sigma1_vals / sqrt(1e5), col = "blue")
 lines(deltas, first_order_extr - 1.96 * sigma1_vals / sqrt(1e5), col = "blue")
 
-lines(deltas, first_order_extr + 1.96 * sigma1_vals / sqrt(1e5), col = "blue")
-lines(deltas, first_order_extr - 1.96 * sigma1_vals / sqrt(1e5), col = "blue")
+# lines(deltas, middle_combination + 1.96 * sigma_half_vals / sqrt(1e5), col = "red")
+# lines(deltas, middle_combination - 1.96 * sigma_half_vals / sqrt(1e5), col = "red")
 
-lines(deltas, middle_combination + 1.96 * sigma_half_vals / sqrt(1e5), col = "red")
-lines(deltas, middle_combination - 1.96 * sigma_half_vals / sqrt(1e5), col = "red")
-
-# lines(deltas, WLS1_vals)
-# lines(deltas, WLS2_vals)
-
+lines(deltas, WLS1_vals)
+lines(deltas, WLS2_vals)
 lines(deltas, second_order_extr)

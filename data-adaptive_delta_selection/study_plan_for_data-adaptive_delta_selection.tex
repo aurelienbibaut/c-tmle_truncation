@@ -1,0 +1,58 @@
+\documentclass[a4paper]{article}
+\usepackage{fullpage}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\graphicspath{ {/home/aurelien/} }
+
+\title{Study plan for data adaptive selection of truncation level}
+
+\begin{document}
+
+\maketitle
+
+
+(Initially intended for no extrapolation, just TMLE of truncation induced target parameter).
+
+I want to understand if choosing $\delta$​ by starting at a say 0.2 and moving to zero until $\frac{d}{d\delta} \hat{\Psi}_n(\delta) + \frac{1}{n} \frac{d}{d\delta}\hat{\sigma}_n(\delta) = 0$ can work.
+
+\medskip
+
+Define
+
+\begin{align*}
+\delta^0_n &= \text{argmin}_\delta E[(\hat{\Psi}_n(\delta) - EY_d)^2] = \text{argmin} \text{MSE}_n(\delta) \\
+\delta^1_n &= \text{argmin}_\delta b_0^2(\delta) + \frac{1}{n} \sigma_0^2(\delta) \\
+\delta^2_n &= \text{argmin}_\delta b_0(\delta) + \frac{1}{n} \sigma_0(\delta).\\
+\end{align*}
+
+\medskip
+
+Stuff I know:
+
+\begin{itemize}
+\item $b_0^2(\delta) + \frac{1}{n} \sigma_0^2(\delta) \leq \left(b_0(\delta) + \frac{1}{n} \sigma_0(\delta)\right)^2 \leq 2 \left(b_0^2(\delta) + \frac{1}{n} \sigma_0^2(\delta) \right)$
+\end{itemize}
+
+\medskip
+
+Stuff I need to check:
+
+\begin{enumerate}
+\item Do I have $\alpha_{i,j} \delta^i_n \leq \delta^j_n \leq \beta_{i, j} \delta^i_n$ for $i, j \in \{0, 1, 2 \}$ and $\alpha_{i,j} >0, \beta_{i, j} > 0$? In other words, are the three deltas defined above roughly speaking equivalent up to multiplicative constants?
+\item Do I have the same for the MSEs wrt $EY_d$ of $\Psi(\delta^i_n)$ and $\Psi(\delta^j_n)$ for pairs $(i,j)$?
+\item Can I estimate $\delta^2_n$ well? Let $\hat{\delta}_n$ its estimate obtained with the procedure described above?
+\item Do I have $b_0(\hat{\sigma}^2_n) + \frac{1}{n} \sigma_0(\hat{\sigma}^2_n) \sim b_0(\sigma^2_n) + \frac{1}{n} \sigma_0(\delta^2_n)$?
+\end{enumerate}
+
+\medskip
+
+Notes:
+
+1 and 2: Computing $\delta^0_n$ requires simulations, especially computing $\text{MSE}_n$ for a bunch of $n$	
+
+3: to check if $\hat{\delta}^2_n$ estimates $\delta^2_n$ well: plot $\text{MSE}_n$ as a function of $n$, or $n \times \text{MSE}_n$ as a function of $n$, or $\log \text{MSE}_n$ as a function of $\log n$. The latter will give an idea of the rate.
+
+
+\end{document}
