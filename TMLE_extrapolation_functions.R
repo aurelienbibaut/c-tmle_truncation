@@ -1,3 +1,10 @@
+# Manually define loss function (I guess at some point glm wasn't working fine,
+# but I might not have been using it right)
+loss <- function(coefficients, outcome, covariates, boolean_subset, offset=0){
+  Q_k <- as.vector(expit(covariates %*% coefficients + offset))
+  sum(-boolean_subset * (outcome * log(Q_k) + (1 - outcome) * log(1 - Q_k)))
+}
+
 # Compute a_delta0 as defined in write-up
 compute_a_delta0 <- function(delta0, order){
   if(order <= 0) return(list(a_delta0 = 1, deltas = delta0))

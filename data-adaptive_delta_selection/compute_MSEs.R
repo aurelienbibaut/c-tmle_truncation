@@ -34,7 +34,6 @@ cl <- startMPIcluster(72)
 registerDoMPI(cl)
 
 foreach(i = 1:length(jobs)) %dopar% {
-# i <- 1
   job <- jobs[i]
   estimates <- vector()
   for(m in 1:M){

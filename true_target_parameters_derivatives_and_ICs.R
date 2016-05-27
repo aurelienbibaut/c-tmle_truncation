@@ -31,7 +31,8 @@ compute_true_Psi0_delta <- function(type, positivity_parameter, alpha0, beta0, b
 }
 
 # Compute the true variance of the influence curve of Psi0(delta) and of the first order Taylor expansion
-compute_true_var_IC_Psi0_delta <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, delta, lambda = 1){
+compute_true_var_IC_Psi0_delta <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, delta, 
+                                           lambda = 1, lower_bound = NULL){
   # Generate and get densities and conditional expectations functions
   densities_and_cond_expectation <- generate_densities(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0)
   g0_dw_w <- densities_and_cond_expectation$g0_dw_w
@@ -41,23 +42,17 @@ compute_true_var_IC_Psi0_delta <- function(type, positivity_parameter, alpha0, b
   # Variance of the influence curve of the plain trucation induced target parameter Psi0(delta)
   integrand1 <- Vectorize(function(w) q_w(w) * g0_dw_w(w) / max(delta, g0_dw_w(w))^2 * (Q0_dw_w(w) - Q0_dw_w(w)^2))
   integrand2 <- Vectorize(function(w) q_w(w) * g0_dw_w(w)^2 / max(delta, g0_dw_w(w))^2 * Q0_dw_w(w)^2)
+  integrand3 <- Vectorize(function(w) q_w(w) * g0_dw_w(w) / max(delta, g0_dw_w(w)) * Q0_dw_w(w))
+  
+  if(is.null(lower_bound))
+    lower_bound <- -5 * positivity_parameter
+
+  Psi0_delta <- integrate(integrand3, lower = -5 * positivity_parameter, upper = 5 * positivity_parameter)$value
+  
   var_IC0 <- integrate(integrand1, lower = -5 * positivity_parameter, upper = 5 * positivity_parameter)$value +
     integrate(integrand2, lower = -5 * positivity_parameter, upper = 5 * positivity_parameter)$value - Psi0_delta^2
   
-  # Variance of the influence curve of the first order Taylor expansion
-  if(delta > 0){
-    integrand1 <-  Vectorize(function(w) q_w(w) * g0_dw_w(w) * (1 / max(delta, g0_dw_w(w)) + 
-                                                                  lambda * as.numeric(g0_dw_w(w) < delta) / delta)^2 *
-                               (Q0_dw_w(w) - Q0_dw_w(w)^2))
-    integrand2 <- Vectorize(function(w) q_w(w) * g0_dw_w(w)^2 * (1 / max(delta, g0_dw_w(w)) + 
-                                                                   lambda * as.numeric(g0_dw_w(w) < delta) / delta)^2 *
-                              Q0_dw_w(w)^2)
-  }
-  Psi1_delta <- Psi0_delta - first_derivative * delta
-  var_IC1 <- integrate(integrand1, lower = -5 * positivity_parameter, upper = 5 * positivity_parameter)$value +
-    integrate(integrand2, lower = -5 * positivity_parameter, upper = 5 * positivity_parameter)$value - Psi1_delta^2
-  
-  list(var_IC0 = var_IC0, var_IC1 = var_IC1)
+  var_IC0
 }
 
 # Compute the first and second derivatives of Psi_0 at delta
