@@ -64,8 +64,8 @@ TMLE_truncated_target <- function(observed_data, d0, delta, Q_misspecified = F){
   
   # 1.a Fit initial model Q^1_{d,n} of Q^1_{0,d}
   if(Q_misspecified == FALSE){
-    coeffs_Q1d_bar_0n <- optim(par=c(0,0,0), fn=loss, outcome=L1, 
-                               covariates=cbind(1,L0,A0), 
+    coeffs_Q1d_bar_0n <- optim(par=c(0,0,0), fn=loss, outcome=L1,
+                               covariates=cbind(1,L0,A0),
                                boolean_subset = (A0==d0(L0)))$par
     offset_vals_Q1d_bar_0n <- as.vector(cbind(1, L0, d0(L0)) %*% coeffs_Q1d_bar_0n)
   }else{
@@ -87,9 +87,42 @@ TMLE_truncated_target <- function(observed_data, d0, delta, Q_misspecified = F){
   mean(gn0 / gn0_delta * Q1d_bar_star_n)
 }
 
+# TMLE of truncated target parameter
+TMLE_EY1 <- function(observed_data, delta){
+  
+  L0 <- observed_data$L0; A0 <- observed_data$A0; L1 <- observed_data$L1
+  n <- length(L0)
+  
+  # 0. Fit models for g_{n,k=0}
+  initial_model_for_A0 <- glm(A0 ~ 1 + L0, family=binomial)
+  initial_model_for_A0$coefficients[is.na(initial_model_for_A0$coefficients)] <- 0
+  gn0 <- as.vector(predict(initial_model_for_A0, type="response"))
+  
+  # 1.a Fit initial model Q^1_{d,n} of Q^1_{0,d}
+  coeffs_Q1d_bar_0n <- glm(L1 ~ L0, family = binomial, subset = which(A0 == 1))$coefficients
+  offset_vals_Q1d_bar_0n <- as.vector(cbind(1, L0) %*% coeffs_Q1d_bar_0n)
+  Q1d_bar_0n <- expit(offset_vals_Q1d_bar_0n)
+  
+  # Compute clever covariate
+  gn0_delta <- g_to_g_delta(delta, gn0)
+  H_delta <- (A0 == 1) / gn0_delta
+  H_delta_setting_A_to_d <- 1 / gn0_delta
+  
+  # Fit parametric submodel to training set
+  epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = offset_vals_Q1d_bar_0n,
+                 subset = which(A0 == 1))$coefficients[1]
+  cat("delta = ", delta, ", epsilon = ", epsilon, "\n")
+  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
+  
+  # Return estimator
+  mean(gn0 / gn0_delta * Q1d_bar_star_n)
+}
+
+# debug(TMLE_EY1)
+
 # Untargeted extrapolation
 TMLE_extrapolation <- function(observed_data, d0, order, delta0, Q_misspecified = F,
-                                   n_points = 11, diff_step = NULL){
+                               n_points = 11, diff_step = NULL){
   # Compute a_delta0 as defined in write-up
   result_compute_a_delta0 <- compute_a_delta0(delta0, order = order, n_points, diff_step, verbose=F)
   a_delta0 <- result_compute_a_delta0$a_delta0

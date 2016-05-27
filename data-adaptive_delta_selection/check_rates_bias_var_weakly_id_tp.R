@@ -29,18 +29,35 @@ source('../TMLE_extrapolation_functions.R')
 # Now let's check if (Psi_n(delta + Delta) - Psi(delta) + n^(-1/2) * ((delta+Delta)^-gamma - delta^-gamma)) / Delta
 beta <- 0.25
 gamma <- 0.125
-finite_diffs <- vector()
-ns <- 10^(2:8)
+finite_diffs <- vector(); finite_diffs_bias <- vector()
+ns <- 10^(2:7)
+deltas <- vector()
+
 for(n in ns){
+  cat("n = ", n, "\n")
   observed_data <- generate_data("L0_exp", 2, 2, -3, 1.5, 1, n)
   delta_n_plus <- n^(-1 / (2 * (gamma + 1 - beta))) * n^0.1
+  
+  deltas <- c(deltas, delta_n_plus)
+  
   Delta <- n^(-0.25) * delta_n_plus^((beta + 1 - gamma) / 2)
-  Psi_n_delta_plus_Delta <- TMLE_truncated_target(observed_data, alwaysTreated0, delta_n_plus + Delta)
-  Psi_n_delta <- TMLE_truncated_target(observed_data, alwaysTreated0, delta_n_plus)
+  cat("Delta = ", Delta, "\n")
+  
+  Psi_n_delta_plus_Delta <- TMLE_EY1(observed_data, delta_n_plus + Delta)
+  Psi_n_delta <- TMLE_EY1(observed_data, delta_n_plus)
   
   finite_diffs <- c(finite_diffs,
                     (Psi_n_delta_plus_Delta - Psi_n_delta + 
-                    n^(-0.5) * ((delta_n_plus + Delta)^(-gamma) - delta_n_plus^(-gamma))) / Delta)
+                       n^(-0.5) * ((delta_n_plus + Delta)^(-gamma) - delta_n_plus^(-gamma))) / Delta)
   
+  finite_diffs_bias <- c(finite_diffs_bias, (Psi_n_delta_plus_Delta - Psi_n_delta) / Delta)
+  
+  
+  print(finite_diffs)
+  print(finite_diffs_bias)
+  
+  par(mfrow = c(1, 2))
+  plot(log(deltas), log(abs(finite_diffs)))
+  plot(log(deltas), log(abs(finite_diffs_bias)))
 }
 
