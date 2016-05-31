@@ -36,7 +36,7 @@ deltas <- vector()
 for(n in ns){
   cat("n = ", n, "\n")
   observed_data <- generate_data("L0_exp", 2, 2, -3, 1.5, 1, n)
-  delta_n_plus <- n^(-1 / (2 * (gamma + 1 - beta))) * n^0.1
+  delta_n_plus <- n^(-1 / (2 * 5 * (gamma + 1 - beta)))
   
   deltas <- c(deltas, delta_n_plus)
   
