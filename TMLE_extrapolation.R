@@ -1,297 +1,78 @@
-# Treatment rule(s)
-alwaysTreated0 <- function(L0){
-  1
-}
+source('../utilities.R')
+source('../true_target_parameters_derivatives_and_ICs.R')
+source('../generate_data.R')
+source('../TMLE_extrapolation_functions.R')
 
-# Functions to be used later
-logit <- function(x){
-  log(x/(1-x))
-}
+# deltas <- seq(from = 0, to = 10^-2, length = 100)
+# 
+# Psi0s <- sapply(deltas, function(delta) compute_true_Psi0_delta("L0_exp", 2, 2, -3, 1.5, 1, alwaysTreated0, delta))
+# 
+# Psi0_0 <- Psi0s[1]
+# b0 <- abs(Psi0s - Psi0_0)
+# 
+# rate_b0 <- (log(b0[100]) - log(b0[2])) / (log(deltas[100]) - log(deltas[2]))
+# 
+# sigma0s <- sapply(deltas, function(delta) sqrt(compute_true_var_IC_Psi0_delta("L0_exp", 2, 2, -3, 1.5, 1, alwaysTreated0, delta)))
+# 
+# rate_sigma0 <- (log(sigma0s[100]) - log(sigma0s[2])) / (log(deltas[100]) - log(deltas[2]))
+# 
+# par(mfrow = c(1, 2))
+# plot(log(deltas), log(b0))
+# abline(-4, 0.75)
+# 
+# plot(log(deltas), log(sigma0s))
+# print(rate_b0)
+# print(rate_sigma0)
+# 
+# cat("beta = ", 1 - rate_b0, "\ngamma = ", abs(rate_sigma0))
 
-expit <- function(x){
-  result <- exp(x)/(1+exp(x))
-  result[is.nan(result)] <- 1
-  result
-}
-
-g_to_g_delta<-function(delta, g){
-  (g<delta) * delta + (g>=delta) * g
-}
-
-loss <- function(coefficients, outcome, covariates, boolean_subset, offset=0){
-  Q_k <- as.vector(expit(covariates %*% coefficients + offset))
-  sum(-boolean_subset * (outcome * log(Q_k) + (1 - outcome) * log(1 - Q_k)))
-}
-
-# Data generation
-generate_data <- function(type = "L0_unif", positivity_parameter, alpha0, beta0, beta1, beta2, n){
-  if(type == "L0_unif") 
-    L0 <- runif(n, min= -positivity_parameter, max= positivity_parameter)
-  else 
-    L0 <- rexp(n, rate = 1 / positivity_parameter) * (1 - 2 * rbinom(n, 1, prob = 0.5))
-  L0 <- runif(n, min = -positivity_parameter, max = positivity_parameter)
-  g00 <- expit(alpha0*L0)
-  A0 <- rbinom(n, 1, g00)
-  PL1givenA0L0 <- expit(beta0+beta1*A0+beta2*L0)
-  L1 <- rbinom(n, 1, PL1givenA0L0)
-  list(L0 = L0, A0 = A0, L1 = L1)
-}
-
-# Compute a(delta0) (as defined in write up)
-compute_a_delta0 <- function(delta0, order, n_points = 9, diff_step = NULL, verbose = F){
-  
-  #   cat("delta0 = ", delta0, " and order = ", order, "\n")
-  
-  if(order <= 0) return(list(a_delta0 = 1, deltas = delta0))
-  
-  if(n_points %% 2 == 0) n_points <- n_points + 1
-  
-  if(is.null(diff_step)){
-    if(delta0 - (n_points-1)/2*1e-3 > 0){ diff_step=1e-3 }else{ diff_step = delta0 / (n_points-1) }
-  }
-  bw <- diff_step * 2
-  deltas <- delta0 + (1:n_points-1-(n_points-1) / 2)*diff_step
-  weights <- exp(-(deltas-delta0)^2 / (2*bw^2)) / sqrt(2*pi*bw^2)
-  
-  X <- outer(deltas - delta0, 0:order, "^")
-  
-  A <- apply(diag(nrow(X)), 2, function(C) lm.wfit(X, C, weights)$coefficients)
-  a_delta0 <- (-delta0)^(0:order) %*% A
-  list(a_delta0 = a_delta0, differentiator = A, deltas = deltas)
-}
-
-# debug(compute_a_delta0)
-
-# TMLE of truncated target parameter
-TMLE_truncated_target <- function(observed_data, d0, delta, Q_misspecified = F){
-  
-  L0 <- observed_data$L0; A0 <- observed_data$A0; L1 <- observed_data$L1
-  n <- length(L0)
-  
-  # 0. Fit models for g_{n,k=0}
-  initial_model_for_A0 <- glm(A0 ~ 1 + L0, family=binomial)
-  initial_model_for_A0$coefficients[is.na(initial_model_for_A0$coefficients)] <- 0
-  gn0 <- as.vector(predict(initial_model_for_A0, type="response"))
-  
-  # 1.a Fit initial model Q^1_{d,n} of Q^1_{0,d}
-  if(Q_misspecified == FALSE){
-    coeffs_Q1d_bar_0n <- optim(par=c(0,0,0), fn=loss, outcome=L1, 
-                               covariates=cbind(1,L0,A0), 
-                               boolean_subset = (A0==d0(L0)))$par
-    offset_vals_Q1d_bar_0n <- as.vector(cbind(1, L0, d0(L0)) %*% coeffs_Q1d_bar_0n)
-  }else{
-    offset_vals_Q1d_bar_0n <- rep(logit(mean(L1[A0==d0(L0)])), n)
-  }
-  Q1d_bar_0n <- expit(offset_vals_Q1d_bar_0n)
-  
-  # Compute clever covariate
-  gn0_delta <- g_to_g_delta(delta, gn0)
-  H_delta <- (A0 == d0(L0)) / gn0_delta
-  H_delta_setting_A_to_d <- 1 / gn0_delta
-  
-  # Fit parametric submodel to training set
-  epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = offset_vals_Q1d_bar_0n,
-                 subset = which(A0 == d0(L0)))$coefficients[1]
-  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
-  
-  # Return estimator
-  mean(gn0 / gn0_delta * Q1d_bar_star_n)
-}
-
-# Untargeted extrapolation
-TMLE_extrapolation_bis <- function(observed_data, d0, order, delta0, Q_misspecified = F,
-                                   n_points = 11, diff_step = NULL){
-  # Compute a_delta0 as defined in write-up
-  result_compute_a_delta0 <- compute_a_delta0(delta0, order = order, n_points, diff_step, verbose=F)
-  a_delta0 <- result_compute_a_delta0$a_delta0
-  deltas <- result_compute_a_delta0$deltas
-  
-  # Get the Psi(delta) for each deltas
-  Psi_deltas <- sapply(deltas, function(delta) TMLE_truncated_target(observed_data, d0, delta, Q_misspecified = F))
-  
-  # Extrapolate
-  a_delta0 %*% Psi_deltas
-}
-
-# TMLE of extrapolation
-TMLE_extrapolation <- function(observed_data, training_set, test_set, d0, order, delta0, Q_misspecified = F, 
-                               n_points = 11, diff_step = NULL){
-  
-  L0 <- observed_data$L0; A0 <- observed_data$A0; L1 <- observed_data$L1
-  n <- length(L0)
-  
-  # Fit models for g_{n,k=0}
-  initial_model_for_A0 <- glm(A0 ~ 1 + L0, family=binomial, subset = training_set)
-  initial_model_for_A0$coefficients[is.na(initial_model_for_A0$coefficients)] <- 0
-  gn0 <- as.vector(predict(initial_model_for_A0, type="response"))
-  
-  # Compute a_delta0 as defined in write-up
-  result_compute_a_delta0 <- compute_a_delta0(delta0, order = order, n_points, diff_step, verbose=F)
-  a_delta0 <- result_compute_a_delta0$a_delta0
-  deltas <- result_compute_a_delta0$deltas
-  
-  # Compute clever covariate
-  gn0_delta0 <- g_to_g_delta(delta0, gn0)
-  gn0_deltas <- sapply(deltas, g_to_g_delta, g=gn0)
-  H_delta <- (A0==d0(L0)) / gn0 * (outer(gn0, rep(1, length(deltas))) / gn0_deltas) %*% t(a_delta0)
-  H_delta_setting_A_to_d <- 1 / gn0 * (outer(gn0, rep(1, length(deltas))) / gn0_deltas) %*% t(a_delta0)
-  
-  # Fit initial model Q^1_{d,n} of Q^1_{0,d}
-  if(Q_misspecified == FALSE){
-    coeffs_Q1d_bar_0n <- optim(par = c(0,0,0), fn=loss, outcome=L1, 
-                               covariates = cbind(1,L0,A0), 
-                               boolean_subset = intersect(which(A0 == d0(L0)), training_set))$par
-    offset_vals_Q1d_bar_0n <- as.vector(cbind(1, L0, d0(L0)) %*% coeffs_Q1d_bar_0n)
-  }else{
-    offset_vals_Q1d_bar_0n <- rep(logit(mean(L1[intersect(which(A0 == d0(L0)), training_set)])), n)
-  }
-  Q1d_bar_0n <- expit(offset_vals_Q1d_bar_0n)
-  
-  # Fit parametric submodel to training set
-  epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = offset_vals_Q1d_bar_0n,
-                 subset = intersect(which(A0 == d0(L0)), training_set))$coefficients[1]
-  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
-  
-  # Compute estimator and influence curve
-  Psi_n <- mean(Q1d_bar_star_n * (outer(gn0, rep(1, length(deltas))) / gn0_deltas) %*% t(a_delta0))
-  D_star_n <- H_delta + (1 / gn0_deltas) %*% t(a_delta0) * gn0 * Q1d_bar_star_n #It's actually D_star_n plus its mean
-  var_D_star_n <- var(D_star_n)
-  var_D_star_n_test <- var(D_star_n[test_set])
-  
-  # Return estimator, and Q_bar
-  list(Psi_n = Psi_n, Q_bar = Q1d_bar_star_n, var_D_star_n = var_D_star_n, var_D_star_n_test = var_D_star_n_test)
-}
-
-# debug(C_TMLE_truncation)
-
-# Simulations -------------------------------------------------------------
-# Compute true value of EY^d
-compute_Psi_d_MC <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, M){
-  # Monte-Carlo estimation of the true value of mean of Yd
-  if(type == "L0_unif") 
-    L0_MC <- runif(M, min= -positivity_parameter, max= positivity_parameter)
-  else 
-    L0_MC <- rexp(M, rate = 1 / positivity_parameter) * (1 - 2 * rbinom(M, 1, prob = 0.5))
-  A0_MC <- d0(L0_MC)
-  g0_MC <- expit(alpha0 * L0_MC)
-  PL1givenA0L0_MC <- expit(beta0 + beta1 * A0_MC + beta2 * L0_MC)
-  mean(PL1givenA0L0_MC)
-}
-
-# Compute true value of truncation induced target parameter by numerical integration
-compute_Psi_0_delta <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, delta){
-  #g0_dw_w is g0(d(w)|w)
-  g0_dw_w <- Vectorize(function(w) d0(w) * expit(alpha0 * w) + (1 - d0(w)) * (1 - expit(alpha0 * w)))
-  
-  # Q0_dw_w is \bar{Q}_0(d(w)| w)
-  Q0_dw_w <- function(w) expit(beta0 + beta1 * d0(w) + beta2 * w)
-  
-  # q_w is q_w(w)
-  if(type == "L0_exp"){
-    q_w <- function(w) 1 / 2 * 1 / positivity_parameter * exp(-abs(w) / positivity_parameter)
-  }else{
-    q_w <- Vectorize(function(w) 1 / (2 * positivity_parameter) * (abs(w) <= positivity_parameter))
-  }
-  
-  # Define integrand such that \int integrand(w) dw = Psi_0(\delta) and integrate it
-  integrand <- Vectorize(function(w) q_w(w) * g0_dw_w(w) / max(delta, g0_dw_w(w)) * Q0_dw_w(w))
-  integrate(integrand, lower = -5 * positivity_parameter, upper = 5 * positivity_parameter)$value
-}
+# Now let's check if (Psi_n(delta + Delta) - Psi(delta) + n^(-1/2) * ((delta+Delta)^-gamma - delta^-gamma)) / Delta
+beta <- 0.25
+gamma <- 0.125
+eta <- 2
+finite_diffs <- vector(); finite_diffs_bias <- vector()
+ns <- 10^(2:7)
+deltas <- vector()
 
 
-# Specify the jobs. A job is the computation of a batch. 
-# It is fully characterized by the parameters_tuple_id that the batch corresponds to.
-# ns <- c((1:9)*100, c(1:9)*1000, 2*c(1:5)*1e4)
-ns <- c(50, 100, 150, 200, 250, (3:10) * 100)
-delta0s <- 10^(seq(from = -8, to = log(0.4)/log(10), length = 50))
-orders <- 0:4
-parameters_grid <- rbind(expand.grid(type = "L0_unif", positivity_parameter = c(2, 4), 
-                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, delta0 = delta0s, order = orders),
-                         expand.grid(type = "L0_exp", positivity_parameter = c(2, 4), 
-                                     alpha0 = 2, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, delta0 = delta0s, order = orders))
-# parameters_grid <- expand.grid(type = "L0_unif", positivity_parameter = 4,
-#                                alpha0 = 1, beta0 = -3, beta1 = +1.5, beta2 = 1, n = ns, orders_set_id = 1:3)
-
-jobs <- sample(1:nrow(parameters_grid))
-n_samples_per_job <- 1e4
-
-# # Compute target parameter for each parameters tuple id
-target_parameters <- vector()
-tp_params <- unique(parameters_grid[,c("type", "positivity_parameter", "alpha0", "beta0", "beta1", "beta2")])
-for(i in 1:nrow(tp_params)) #target_parameters[i] <- NA
-  target_parameters[i] <- compute_Psi_0_delta(type = tp_params[i, "type"],
-                                              positivity_parameter = tp_params[i, "positivity_parameter"],
-                                              alpha0 = tp_params[i, "alpha0"], 
-                                              beta0 = tp_params[i, "beta0"],
-                                              beta1 = tp_params[i, "beta1"],
-                                              beta2 = tp_params[i, "beta2"],
-                                              d0 = alwaysTreated0,
-                                              delta = tp_params[i, "delta0"])
-target_parameters <- cbind(tp_params, target_parameters)
-
-# Save the parameters' grid
-write.table(parameters_grid, file = "parameters_grid_extrapolations.csv", append = F, row.names=F, col.names=T,  sep=",")
-
-# Perform the jobs in parallel
 # library(foreach); library(doParallel)
-# cl <- makeCluster(getOption("cl.cores", 2), outfile = "")
+# cl <- makeCluster(getOption("cl.cores", 4), outfile = "")
 # registerDoParallel(cl)
-library(Rmpi); library(doMPI)
-cl <- startMPIcluster(72)
-registerDoMPI(cl)
 
-results <- foreach(i = 1:length(jobs)) %dopar% { #job is a parameter_tuple_idS
-  # for(i in 1:length(jobs)){
-#     job <- 1
-  job <- jobs[i]
-  results_TMLE_extrapolation <- vector(); results_TMLE_extrapolation_bis <- vector()
-  for(j in 1:n_samples_per_job){
-    observed_data <- generate_data(type = parameters_grid[job,]$type, 
-                                   positivity_parameter = parameters_grid[job,]$positivity_parameter, 
-                                   alpha0 = parameters_grid[job,]$alpha0,
-                                   beta0 = parameters_grid[job,]$beta0, beta1 = parameters_grid[job,]$beta1, 
-                                   beta2 = parameters_grid[job,]$beta2, n = parameters_grid[job,]$n)
-    
-    training_set <- 1:parameters_grid[job,]$n
-    test_set <- NULL
-    try(result_TMLE_extrapolation <- TMLE_extrapolation(observed_data, training_set, 
-                                                        test_set, alwaysTreated0, 
-                                                        parameters_grid[job,]$order,
-                                                        parameters_grid[job,]$delta0,
-                                                        Q_misspecified = F)$Psi_n)
-    try(result_TMLE_extrapolation_bis <- TMLE_extrapolation_bis(observed_data,
-                                                                alwaysTreated0,
-                                                                parameters_grid[job,]$order,
-                                                                parameters_grid[job,]$delta0,
-                                                                Q_misspecified = F))
-    
-    results_TMLE_extrapolation <- c(results_TMLE_extrapolation, result_TMLE_extrapolation)
-    results_TMLE_extrapolation_bis <- c(results_TMLE_extrapolation_bis, result_TMLE_extrapolation_bis)
-    #cat("TMLE_extrapolation=", result_TMLE_extrapolation, "\n")
-    #cat("TMLE_extrapolation_bis=", result_TMLE_extrapolation_bis, "\n")
-    
-    target_parameter <- as.numeric(subset(target_parameters, type == parameters_grid[job,]$type
-                                          & positivity_parameter ==  parameters_grid[job,]$positivity_parameter
-                                          & alpha0 == parameters_grid[job,]$alpha0
-                                          & beta0 == parameters_grid[job,]$beta0
-                                          & beta1 == parameters_grid[job,]$beta1
-                                          & beta2 == parameters_grid[job,]$beta2, select = target_parameters))
-    
-    iteration_results <- matrix(nrow = 2, ncol = 4)
-    colnames(iteration_results) <- c("parameters_tuple_id", "estimator", "bias", "var")
-    iteration_results[1, ] <- c(job, "TMLE.extr", abs(mean(results_TMLE_extrapolation - target_parameter)), var(results_TMLE_extrapolation))
-    iteration_results[2, ] <- c(job, "TMLE.extr.bis", abs(mean(results_TMLE_extrapolation_bis - target_parameter)), var(results_TMLE_extrapolation_bis))
-  }
+for(n in ns){
+  cat("n = ", n, "\n")
+  observed_data <- generate_data("L0_exp", 2, 2, -3, 1.5, 1, n)
+  delta_n_plus <- n^(-1 / (2 * 4 * (gamma + 1 - beta)))
   
-  if(!file.exists("TMLE_extrapolations_intermediate_results.csv")){
-    write.table(iteration_results, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=T,  sep=",")
-  }else{
-    write.table(iteration_results, file="TMLE_extrapolations_intermediate_results.csv", append=T, row.names=F, col.names=F,  sep=",")
-  }
-  iterations_results
+  deltas <- c(deltas, delta_n_plus)
+  
+  Delta <- n^(-0.25) * delta_n_plus^((beta + 1 - gamma) / 2)
+  cat("Delta = ", Delta, "\n")
+  
+  Psi_n_delta_plus_Delta <- TMLE_EY1(observed_data, delta_n_plus + Delta)
+  Psi_n_delta <- TMLE_EY1(observed_data, delta_n_plus)
+  
+  finite_diffs <- c(finite_diffs,
+                    (Psi_n_delta_plus_Delta - Psi_n_delta + 
+                       n^(-0.5) * ((delta_n_plus + Delta)^(-gamma) - delta_n_plus^(-gamma))) / Delta)
+  
+  finite_diffs_bias <- c(finite_diffs_bias, (Psi_n_delta_plus_Delta - Psi_n_delta) / Delta)
+  
+  
+  print(finite_diffs)
+  print(finite_diffs_bias)
+  
+  #   plot(log(deltas), log(abs(finite_diffs)), ylim = c(min(c(log(abs(finite_diffs)), log(abs(finite_diffs_bias)))),
+  #                                                      max(c(log(abs(finite_diffs)), log(abs(finite_diffs_bias))))))
+  plot(log(deltas), log(abs(finite_diffs)), ylim = c(-4,
+                                                     max(c(log(abs(finite_diffs)), log(abs(finite_diffs_bias))))))
+  title(main = list(paste(c("Estimated finite difference (dots)\n
+                            and estimated finite diff + n^-0.5 * delta^-gamma,\n
+                            eta = ", eta), collapse = ""), cex = 0.7,
+                    col = "red", font = 1))
+  lines(log(deltas), log(abs(finite_diffs_bias)))
+  abline(log(abs(finite_diffs_bias[length(deltas)])) + 0.25 * log(deltas[length(deltas)]), -0.25)
 }
 
-save(results, parameters_grid, file = "TMLE_extrapolations_results")
-
-closeCluster(cl)
-mpi.quit()
+par(mfrow  = c(1, 1))
+  

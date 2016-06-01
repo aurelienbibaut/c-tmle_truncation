@@ -69,7 +69,7 @@ for(n in ns){
                             extendInt = "yes")$root))
 }
 
-par(mfrow = c(2, 2))
+par(mfrow = c(2, 2), mar=c(4.1,4.5,4.9,2.1))
 plot(log(ns), log(delta_n))
 abline(log(delta_n)[1] + 1/(2*(gamma + 1 - beta)) * log(10^2), -1/(2*(gamma + 1 - beta)))
 
@@ -83,21 +83,51 @@ plot(log(ns), log(LHS_eta), type = "l", col = "green", ylim = c(min(c(log(LHS_et
                                                                       log(LHS_eta_b))),
                                                                 max(c(log(LHS_eta), 
                                                                       log(LHS_eta_a),
-                                                                      log(LHS_eta_b)))))
+                                                                      log(LHS_eta_b)))),
+     xlab = expression(log(n)),
+     ylab = '',
+     main = expression(g(tilde(delta)[n])* hat(" = ") * eta * log* bgroup("(", 
+                                                                         frac(widehat(Delta * R[n](tilde(delta)[n])), sigma[0](tilde(delta)[n])*{tilde(delta)[n]}^{-1})
+                                                                          ,
+                                                                         ")") + 1/2 * log(n)))
 abline(0, 0)
 lines(log(ns), log(LHS_eta_a), col = "blue")
 lines(log(ns), log(LHS_eta_b), col = "red")
+legend('bottomleft', c(expression(g(delta[n]^"*" * n^{-epsilon})),
+                       expression(g(delta[n]^"*")), 
+                       expression(g(delta[n]^"*" * n^epsilon)),
+                       expression(0)), 
+       col = c("blue", "green", "red", "black"), lty = c(1,1,1, 1))
+
 
 plot(log(ns), log(LHS_eta) - 0.5 * log(ns), type = "l", col = "green", ylim = c(min(c(log(LHS_eta) - 0.5 * log(ns), 
                                                                                     log(LHS_eta_a) - 0.5 * log(ns),
                                                                                     log(LHS_eta_b) - 0.5 * log(ns))),
                                                                                 max(c(log(LHS_eta) - 0.5 * log(ns), 
                                                                                       log(LHS_eta_a) - 0.5 * log(ns),
-                                                                                      log(LHS_eta_b)) - 0.5 * log(ns))))
+                                                                                      log(LHS_eta_b)) - 0.5 * log(ns))),
+     xlab = expression(log(n)),
+     ylab = '',
+     main = expression(LHS(tilde(delta)[n]) * hat(" = ") * eta * log* bgroup("(", 
+                                                                         frac(widehat(Delta * R[n](tilde(delta)[n])), sigma[0](tilde(delta)[n])*{tilde(delta)[n]}^{-1}),
+                                                                         ")" )))
+
 lines(log(ns), log(LHS_eta_a) - 0.5 * log(ns), col = "blue")
 lines(log(ns), log(LHS_eta_b) - 0.5 * log(ns), col = "red")
 abline(0, -0.5)
+legend('bottomleft', c(expression(LHS(delta[n]^"*" * n^{-epsilon})),
+                       expression(LHS(delta[n]^"*")), 
+                       expression(LHS(delta[n]^"*" * n^epsilon)),
+                       expression(-0.5 * log(n))), 
+       col = c("blue", "green", "red", "black"), lty = c(1,1,1, 1))
 
 
-plot(log(ns), log(delta_n_star))
+
+plot(log(ns), log(delta_n_star),
+     xlab = expression(log(n)),
+     ylab = expression(log(delta[n]^"*")))
 abline(0, -1 / (2 * eta * (gamma + 1 - beta)))
+legend('bottomleft', c(expression(log(delta[n]^"*")),
+  expression(frac(-log(n), 2 * eta * (gamma + 1 - beta)))), lty = c(NA,1), pch = (c(1, NA)))
+
+mtext(expression(eta == 2), side = 3, line = -25, outer = TRUE, cex = 2)
