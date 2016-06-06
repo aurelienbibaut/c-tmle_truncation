@@ -22,8 +22,8 @@ finite_diff_estimator <- function(delta, n) R_prime(delta, n) + sigma_R_prime(de
 # 
 delta_n <- vector(); bias_prime_delta_n_star <- vector(); sigma_prime_delta_n_star <- vector()
 sigma_R_prime_delta_n_plus <- vector()
-epsilon <- 0.2
-eta <- 2
+epsilon <- 0.1
+eta <- 4
 # 
 
 LHS_eta <- vector(); LHS_eta_a <- vector(); LHS_eta_b <- vector()
@@ -32,7 +32,8 @@ rate_delta_n <- -1 / (2 * (gamma + 1 - beta))
 cat("delta_n's rate: ", rate_delta_n, "\n")
 
 ns <- 10^(seq(from = 2, to = 10, length = 50))
-delta_n_star <- vector()
+delta_n_star <- vector(); etas_n <- vector()
+current_solver_result <- NA
 
 for(n in ns){
   delta_n <- c(delta_n,
@@ -54,22 +55,34 @@ for(n in ns){
   delta_n_a <- delta_n_star_tilde * n^(-epsilon)
   
   
-  LHS_eta<- c(LHS_eta,
-               (finite_diff_estimator(delta_n_star_tilde, n) * delta_n_star_tilde^(gamma + 1))^eta / n^(-0.5))
-  LHS_eta_a <- c(LHS_eta_a,
-                 (finite_diff_estimator(delta_n_a, n) * delta_n_a^(gamma + 1))^eta / n^(-0.5))
-  LHS_eta_b <- c(LHS_eta_b,
-                 (finite_diff_estimator(delta_n_b, n) * delta_n_b^(gamma + 1))^eta / n^(-0.5))
-  # LHS_eta <- c(LHS_eta,
-  #              (R_prime(delta_n_star, n) * delta_n_star^(gamma + 1))^eta)
+  # LHS_eta<- c(LHS_eta,
+  #              (finite_diff_estimator(delta_n_star_tilde, n) * delta_n_star_tilde^(gamma + 1))^eta / n^(-0.5))
+  # LHS_eta_a <- c(LHS_eta_a,
+  #                (finite_diff_estimator(delta_n_a, n) * delta_n_a^(gamma + 1))^eta / n^(-0.5))
+  # LHS_eta_b <- c(LHS_eta_b,
+  #                (finite_diff_estimator(delta_n_b, n) * delta_n_b^(gamma + 1))^eta / n^(-0.5))
   
-  delta_n_star <- c(delta_n_star,
-                    try(uniroot(Vectorize(function(delta) (finite_diff_estimator(delta, n) / delta^(-gamma - 1))^eta - n^(-0.5)),
-                            interval = c(delta_n_a, delta_n_b),
-                            extendInt = "yes")$root))
+  LHS_eta<- c(LHS_eta,
+              (finite_diff_estimator(delta_n_star_tilde, n) * delta_n_star_tilde^2)^eta * n)
+  LHS_eta_a <- c(LHS_eta_a,
+                 (finite_diff_estimator(delta_n_a, n) * delta_n_a^2)^eta * n)
+  LHS_eta_b <- c(LHS_eta_b,
+                 (finite_diff_estimator(delta_n_b, n) * delta_n_b^2)^eta * n)
+  
+  eta_n <- 1 - 1e-2
+  class(current_solver_result) <- "try-error"
+  while(class(current_solver_result) == "try-error"){
+    eta_n <- eta_n + 1e-2
+    current_solver_result <- try(uniroot(Vectorize(function(delta) (finite_diff_estimator(delta, n) / delta^(-gamma - 1))^eta_n - n^(-0.5)),
+                                interval = c(delta_n_a, delta_n_b),
+                                extendInt = "yes")$root)
+  }
+  delta_n_star <- c(delta_n_star, current_solver_result)
+  etas_n <- c(etas_n, eta_n)
 }
 
-par(mfrow = c(2, 2), mar=c(4.1,4.5,4.9,2.1))
+par(mfrow = c(2, 2), mar = c(4.1,4.5,4.9,2.1))
+mtext(expression(eta == 4), side = 3, line = -25, outer = TRUE, cex = 2)
 plot(log(ns), log(delta_n))
 abline(log(delta_n)[1] + 1/(2*(gamma + 1 - beta)) * log(10^2), -1/(2*(gamma + 1 - beta)))
 
@@ -87,9 +100,8 @@ plot(log(ns), log(LHS_eta), type = "l", col = "green", ylim = c(min(c(log(LHS_et
      xlab = expression(log(n)),
      ylab = '',
      main = expression(g(tilde(delta)[n])* hat(" = ") * eta * log* bgroup("(", 
-                                                                         frac(widehat(Delta * R[n](tilde(delta)[n])), sigma[0](tilde(delta)[n])*{tilde(delta)[n]}^{-1})
-                                                                          ,
-                                                                         ")") + 1/2 * log(n)))
+                                                                          frac(widehat(Delta * R[n](tilde(delta)[n])), sigma[0](tilde(delta)[n])*{tilde(delta)[n]}^{-1}),
+                                                                          ")") + 1/2 * log(n)))
 abline(0, 0)
 lines(log(ns), log(LHS_eta_a), col = "blue")
 lines(log(ns), log(LHS_eta_b), col = "red")
@@ -101,16 +113,16 @@ legend('bottomleft', c(expression(g(delta[n]^"*" * n^{-epsilon})),
 
 
 plot(log(ns), log(LHS_eta) - 0.5 * log(ns), type = "l", col = "green", ylim = c(min(c(log(LHS_eta) - 0.5 * log(ns), 
-                                                                                    log(LHS_eta_a) - 0.5 * log(ns),
-                                                                                    log(LHS_eta_b) - 0.5 * log(ns))),
+                                                                                      log(LHS_eta_a) - 0.5 * log(ns),
+                                                                                      log(LHS_eta_b) - 0.5 * log(ns))),
                                                                                 max(c(log(LHS_eta) - 0.5 * log(ns), 
                                                                                       log(LHS_eta_a) - 0.5 * log(ns),
                                                                                       log(LHS_eta_b)) - 0.5 * log(ns))),
      xlab = expression(log(n)),
      ylab = '',
      main = expression(LHS(tilde(delta)[n]) * hat(" = ") * eta * log* bgroup("(", 
-                                                                         frac(widehat(Delta * R[n](tilde(delta)[n])), sigma[0](tilde(delta)[n])*{tilde(delta)[n]}^{-1}),
-                                                                         ")" )))
+                                                                             frac(widehat(Delta * R[n](tilde(delta)[n])), sigma[0](tilde(delta)[n])*{tilde(delta)[n]}^{-1}),
+                                                                             ")" )))
 
 lines(log(ns), log(LHS_eta_a) - 0.5 * log(ns), col = "blue")
 lines(log(ns), log(LHS_eta_b) - 0.5 * log(ns), col = "red")
@@ -123,11 +135,12 @@ legend('bottomleft', c(expression(LHS(delta[n]^"*" * n^{-epsilon})),
 
 
 
-plot(log(ns), log(delta_n_star),
+plot(log(ns), etas_n * log(delta_n_star),
      xlab = expression(log(n)),
      ylab = expression(log(delta[n]^"*")))
-abline(0, -1 / (2 * eta * (gamma + 1 - beta)))
+abline(0, -1 / (2 *  (gamma + 1 - beta)))
 legend('bottomleft', c(expression(log(delta[n]^"*")),
-  expression(frac(-log(n), 2 * eta * (gamma + 1 - beta)))), lty = c(NA,1), pch = (c(1, NA)))
+                       expression(frac(-log(n), 2 * (gamma + 1 - beta)))), lty = c(NA,1), pch = (c(1, NA)))
 
-mtext(expression(eta == 2), side = 3, line = -25, outer = TRUE, cex = 2)
+plot(log(ns), etas_n)
+
