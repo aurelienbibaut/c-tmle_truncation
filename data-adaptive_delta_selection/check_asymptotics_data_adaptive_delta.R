@@ -143,4 +143,3 @@ legend('bottomleft', c(expression(log(delta[n]^"*")),
                        expression(frac(-log(n), 2 * (gamma + 1 - beta)))), lty = c(NA,1), pch = (c(1, NA)))
 
 plot(log(ns), etas_n)
-
