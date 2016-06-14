@@ -179,7 +179,7 @@ TMLE_EY1_bootstrap <- function(observed_data, delta, nb_boostrap_samples = 1000)
 
 # Targeting step for TMLE of the finite difference b0(delta + Delta) - b0(delta)
 # where b0 the bias function for the truncation induced parameter wrt EY1
-targeting_TMLE_fin_diff_EY1 <- function(data, indices){
+targeting_TMLE_fin_diff_EY1 <- function(data, indices, delta, Delta){
   replicate_data <- data[indices, ]
   
   L0 <- replicate_data$L0; A0 <- replicate_data$A0; L1 <- replicate_data$L1
@@ -188,17 +188,18 @@ targeting_TMLE_fin_diff_EY1 <- function(data, indices){
   Q1d_bar_0n <- expit(offset_vals_Q1d_bar_0n)
   
   # Compute clever covariate
-  H_delta <- (A0 == 1) / gn0_delta
-  H_delta_setting_A_to_d <- 1 / gn0_delta
+  H_delta <- (A0 == 1) * ((gn0 < delta + Delta) / (delta + Delta) - (gn0 < delta) / delta)
+  H_delta_setting_A_to_d <- (gn0 < delta + Delta) / (delta + Delta) - (gn0 < delta) / delta
   
   # Fit parametric submodel
   epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = offset_vals_Q1d_bar_0n,
                  subset = which(A0 == 1))$coefficients[1]
+  if(is.na(epsilon)) epsilon <- 0
   
-  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon *H_delta_setting_A_to_d)
+  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
   
   # Return estimator
-  mean(gn0 / gn0_delta  * Q1d_bar_star_n)
+  mean(H_delta_setting_A_to_d * gn0 * Q1d_bar_star_n)
 }
 
 # TMLE, with bootstrap of the targeting step, of the 
@@ -225,13 +226,15 @@ TMLE_fin_diff_EY1_bootstrap <- function(observed_data, delta,
                                   gn0, gn0_delta)
   
   # Bootstrap targeting step + compute estimator on full data
-  full_data_Psi_n <- targeting_TMLE_fin_diff_EY1(targeting_step.df, 1:n)
+  full_data_Psi_n <- targeting_TMLE_fin_diff_EY1(targeting_step.df, 1:n, delta, Delta)
   cat('For n=', n, ' and delta =', delta, ', Psi_n = ', full_data_Psi_n, '\n')
   bootstrapped_Psis_n <- boot(targeting_step.df, targeting_TMLE_fin_diff_EY1, 
-                              nb_boostrap_samples, sim = "ordinary")$t
+                              nb_boostrap_samples, sim = "ordinary", 
+                              delta = delta, Delta = Delta)$t
   
   # Perform Shapiro Wilk's test for normality of the boostrapped estimates
-  shapiro.p_value <- shapiro.test(bootstrapped_Psis_n)$p.value
+  shapiro.p_value <- 1
+  try(shapiro.p_value <- shapiro.test(bootstrapped_Psis_n)$p.value)
   cat('For n = ', n, ' and delta = ', delta,
       ', Shapiro Wilk p-value = ', shapiro.p_value, '\n')
   
@@ -242,7 +245,7 @@ TMLE_fin_diff_EY1_bootstrap <- function(observed_data, delta,
 # with subsampling (without replacement) and comparison with full data.
 # Return the median finite diff estimator on subsampled replicates. 
 TMLE_fin_diff_EY1_subsampling <- function(observed_data, delta, 
-                                        Delta, nb_subsamples = 1000){
+                                          Delta, nb_subsamples = 1000){
   
   L0 <- observed_data$L0; A0 <- observed_data$A0; L1 <- observed_data$L1
   n <- length(L0)
@@ -266,7 +269,7 @@ TMLE_fin_diff_EY1_subsampling <- function(observed_data, delta,
   full_data_Psi_n <- targeting_TMLE_fin_diff_EY1(targeting_step.df, 1:n)
   cat('For n=', n, ' and delta =', delta, ', Psi_n = ', full_data_Psi_n, '\n')
   
-  subsampled_Psis_n <- replicate(nb_subsamples, 
+  subsampled_Psis_n <- replicate(nb_subsamples,
                                  targeting_TMLE_fin_diff_EY1(targeting_step.df[sample(1:n, floor(1 / sqrt(10)), replace = F), ]))
   
   # Compute median difference between 
