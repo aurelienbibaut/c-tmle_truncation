@@ -13,8 +13,6 @@ beta <- 0.25
 gamma <- 0.125
 finite_diffs <- vector(); finite_diffs_bias <- vector()
 
-deltas <- vector()
-
 finite_diff_estimator.bootstrap <- function(observed_data, delta, n){
   Delta <- n^(-0.25) * delta^((beta + 1 - gamma) / 2)
   
@@ -59,12 +57,12 @@ finite_diff_estimator.subsampling <- function(observed_data, base_rate, eta, n, 
 
 # ns <- c(10^(2:6) , 2e6)
 # ns <- 10^(2:6)
-# ns <- 10^(5:6)
+ns <- 10^(5:6)
 # ns <- c(10^(2:5), 2e5)
-ns <- floor(c(10^seq(from = 2, to = log(2e6) / log(10), length = 20)))
+# ns <- floor(c(10^seq(from = 2, to = log(2e6) / log(10), length = 20)))
 # etas <- c(1, 1.1, 1.5, 2, 3, 4)
-# etas <- c(1, 2, 3, 4)
-etas <- c(1, 1.1, 1.5, 2, 3, 4)
+etas <- c(3, 4)
+# etas <- c(1, 1.1, 1.5, 2, 3, 4)
 optimal_rate <- -1 / (2 * (gamma + 1 - beta))
 # rates <- c(0.8 * optimal_rate, 0.95 * optimal_rate, 0.99 * optimal_rate,
 #            optimal_rate, 
@@ -81,10 +79,19 @@ jobs <- expand.grid(n = ns, eta = etas, rate = rates, replicate = 1)
 
 observed_data <- generate_data("L0_exp", 2, 2, -3, 1.5, 1, max(ns))
 
+# Prepare indices of subsamples
+indices_subsamples <- list()
+# resampled_indices <- t(replicate(7, sample(1:max(ns), max(ns), replace = T)))
+for(i in 1:(length(ns) - 1)){
+  indices_subsamples[[i]] <- t(replicate(7, sample(1:max(ns), ns[i], F)))
+  # indices_subsamples[[i]] <- t(apply(resampled_indices, 1, function(x) sample(x, ns[i], F)))
+}
+# indices_subsamples[[length(ns)]] <- resampled_indices
 
 # Set up cluster
 cl <- makeCluster(getOption("cl.cores", 40), outfile = '')
 registerDoParallel(cl)
+
 
 
 results <- foreach(i=1:nrow(jobs), .combine = rbind, 
@@ -97,11 +104,15 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      
                      cat('About to compute the LHS for n=', n, ', rate = ', rate, 'eta =', eta, '\n')
                      # indices <- sample(1:length(observed_data$L0), n, F)
-                     indices <- 1:n
-                     # fin_diff_result <- finite_diff_estimator.bootstrap(lapply(observed_data, function(x) x[indices]), delta, n)
-                     fin_diff <- finite_diff_estimator(lapply(observed_data, function(x) x[indices]), delta, n)
-                     LHS <- abs(fin_diff * delta^2)^eta * n
-                     
+                     if(n == max(ns)){
+                       fin_diff <- finite_diff_estimator(observed_data, delta, n)
+                       LHS <- abs(fin_diff * delta^2)^eta * n
+                     }else{
+                       indices <- indices_subsamples[[which(ns == n)]]
+                       fin_diffs <- apply(indices, 1, function(y) finite_diff_estimator(lapply(observed_data, function(x) x[y]), delta, n))
+                       fin_diff <- median(fin_diffs)
+                       LHS <- abs(fin_diff * delta^2)^eta * n
+                     }
                      c(n, rate, eta, replicate, LHS)
                    }
 
@@ -130,13 +141,13 @@ for(i in 1:length(etas)){
                        list(x = etas[i])))
 }
 # 
-grid.arrange(LHS_plots[[1]], LHS_plots[[2]],
-             LHS_plots[[3]], LHS_plots[[4]],
-             LHS_plots[[5]], LHS_plots[[6]], nrow = 2, ncol = 3, 
-             top = paste(c("C = ", C), collapse = ''))
+# grid.arrange(LHS_plots[[1]], LHS_plots[[2]],
+#              LHS_plots[[3]], LHS_plots[[4]],
+#              LHS_plots[[5]], LHS_plots[[6]], nrow = 2, ncol = 3, 
+#              top = paste(c("C = ", C), collapse = ''))
 # 
 # grid.arrange(LHS_plots[[1]], LHS_plots[[2]], LHS_plots[[3]], LHS_plots[[4]],
 #              nrow = 2, ncol = 2)
-# grid.arrange(LHS_plots[[1]], LHS_plots[[2]], ncol = 2, nrow = 1,
-#              top = paste(c("C = ", C), collapse = ''))
+grid.arrange(LHS_plots[[1]], LHS_plots[[2]], ncol = 2, nrow = 1,
+             top = paste(c("C = ", C), collapse = ''))
 
