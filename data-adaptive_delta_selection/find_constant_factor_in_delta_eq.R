@@ -57,11 +57,11 @@ finite_diff_estimator.subsampling <- function(observed_data, base_rate, eta, n, 
 
 # ns <- c(10^(2:6) , 2e6)
 # ns <- 10^(2:6)
-ns <- 10^(5:6)
+ns <- 10^c(4, 4.5)
 # ns <- c(10^(2:5), 2e5)
 # ns <- floor(c(10^seq(from = 2, to = log(2e6) / log(10), length = 20)))
 # etas <- c(1, 1.1, 1.5, 2, 3, 4)
-etas <- c(3, 4)
+etas <- c(3, 3.5, 4, 4.5)
 # etas <- c(1, 1.1, 1.5, 2, 3, 4)
 optimal_rate <- -1 / (2 * (gamma + 1 - beta))
 # rates <- c(0.8 * optimal_rate, 0.95 * optimal_rate, 0.99 * optimal_rate,
@@ -74,17 +74,31 @@ rates <- seq(from = -0.7, to = -1/3, length = 9)
 #                 0.95 * optimal_rate, 0.99 * optimal_rate,
 #                 optimal_rate, 
 #                 1.01 * optimal_rate, 1.05 * optimal_rate))
-C <- 1 / sqrt(10)
-jobs <- expand.grid(n = ns, eta = etas, rate = rates, replicate = 1)
+C <- 0.3
+nb_replicates <- 1
+jobs <- expand.grid(n = ns, eta = etas, rate = rates, replicate = 1:nb_replicates)
 
 observed_data <- generate_data("L0_exp", 2, 2, -3, 1.5, 1, max(ns))
 
-# Prepare indices of subsamples
+# Prepare indices of replicates and subsamples
+replicates.indices <- list()
+replicates.indices[[1]] <- 1:max(ns)
+if(nb_replicates > 1){
+  for(i in 2:nb_replicates){
+    replicates.indices[[i]] <- sample(1:max(ns), max(ns), replace = T)
+  }
+}
 indices_subsamples <- list()
 # resampled_indices <- t(replicate(7, sample(1:max(ns), max(ns), replace = T)))
-for(i in 1:(length(ns) - 1)){
-  indices_subsamples[[i]] <- t(replicate(7, sample(1:max(ns), ns[i], F)))
-  # indices_subsamples[[i]] <- t(apply(resampled_indices, 1, function(x) sample(x, ns[i], F)))
+for(i in 1:nb_replicates){
+  indices_subsamples[[i]] <- list()
+  for(j in 1:(length(ns) - 1)){
+    indices_subsamples[[i]][[j]] <- t(replicate(10, sample(replicates.indices[[i]], ns[j], F)))
+    # indices_subsamples[[i]] <- t(apply(resampled_indices, 1, function(x) sample(x, ns[i], F)))
+  }
+}
+for(i in 1:nb_replicates){
+  indices_subsamples[[i]][[length(ns)]] <- replicates.indices[[i]]
 }
 # indices_subsamples[[length(ns)]] <- resampled_indices
 
@@ -105,17 +119,18 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      cat('About to compute the LHS for n=', n, ', rate = ', rate, 'eta =', eta, '\n')
                      # indices <- sample(1:length(observed_data$L0), n, F)
                      if(n == max(ns)){
-                       fin_diff <- finite_diff_estimator(observed_data, delta, n)
+                       indices <- indices_subsamples[[replicate]][[which(ns == n)]]
+                       fin_diff <- finite_diff_estimator(lapply(observed_data, function(x) x[indices]), delta, n)
                        LHS <- abs(fin_diff * delta^2)^eta * n
                      }else{
-                       indices <- indices_subsamples[[which(ns == n)]]
+                       indices <- indices_subsamples[[replicate]][[which(ns == n)]]
                        fin_diffs <- apply(indices, 1, function(y) finite_diff_estimator(lapply(observed_data, function(x) x[y]), delta, n))
                        fin_diff <- median(fin_diffs)
                        LHS <- abs(fin_diff * delta^2)^eta * n
                      }
                      c(n, rate, eta, replicate, LHS)
                    }
-
+stopCluster(cl)
 colnames(results) <- c("n", "base_rate", "eta", "replicate", "LHS")
 # Plot the results
 results_df <- as.data.frame(results)
@@ -129,12 +144,51 @@ results_df_bis <- data.frame(n = results_df$n,
 
 results_df_bis <- transform(results_df_bis, base_rate = factor(round(base_rate, 3)))
 
+
+# tracks.slopes <- vector()
+# for(eta in etas){
+#   for(track in unique(results_df_bis$track)){
+#     slope <- results_df_bis[results_df_bis$eta == eta &
+#                               results_df_bis$track == track & results_df_bis$n == 1e6, 'LHS'] -
+#       results_df_bis[results_df_bis$eta == eta &
+#                        results_df_bis$track == track & results_df_bis$n == 1e5, 'LHS']
+#     rate <- as.character(results_df_bis[results_df_bis$eta == eta &
+#                                           results_df_bis$track == track & results_df_bis$n == 1e6, 'base_rate'])
+#     tracks.slopes <- rbind(tracks.slopes,
+#                            c(eta, rate, track, slope))
+#   }
+# }
+# tracks.slopes <- as.data.frame(tracks.slopes)
+# colnames(tracks.slopes) <- c("eta", "rate", "track", "slope")
+# tracks.slopes <- transform(tracks.slopes, eta = as.numeric(as.character(eta)),
+#                            slope = as.numeric(as.character(slope)),
+#                            rate = as.numeric(as.character(rate)))
+# tracks.slopes <- cbind(tracks.slopes, is.median = NA)
+# 
+# median_tracks <- vector()
+# for(current_eta in etas){
+#   for(current_rate in rates){
+#     current_subset <- subset(tracks.slopes, rate == round(current_rate,3) & eta == current_eta)
+#     median_tracks <- rbind(median_tracks,
+#                            c(current_eta, as.character(current_subset$track[current_subset$slope == median(current_subset$slope)])))
+#   }
+# }
+# colnames(median_tracks) <- c('eta', 'track')
+# median_tracks <- transform(as.data.frame(median_tracks), eta = as.numeric(as.character(eta)))
+# results_df_bis <- cbind(results_df_bis, line_width = 1)
+# results_df_bis$line_width <- 1
+# for(eta in etas){
+#   results_df_bis[results_df_bis$eta ==eta &
+#                    as.character(results_df_bis$track) %in% as.character(median_tracks[median_tracks$eta == eta, 'track']), 'line_width'] <- 5
+# }
+
 LHS_plots <- list()
 for(i in 1:length(etas)){
   LHS_plots[[i]] <- ggplot(data = subset(results_df_bis, eta == etas[i] &
                                            n >= 1e2), aes(x = log(n)/log(10), y = log(LHS),
                                                           group = track,
                                                           colour = base_rate)) +
+    # geom_line(aes(size = line_width)) + 
     geom_line() + 
     # geom_point(aes(size = p_value)) + 
     ggtitle(substitute(list(eta) == list(x),
@@ -146,8 +200,7 @@ for(i in 1:length(etas)){
 #              LHS_plots[[5]], LHS_plots[[6]], nrow = 2, ncol = 3, 
 #              top = paste(c("C = ", C), collapse = ''))
 # 
-# grid.arrange(LHS_plots[[1]], LHS_plots[[2]], LHS_plots[[3]], LHS_plots[[4]],
-#              nrow = 2, ncol = 2)
-grid.arrange(LHS_plots[[1]], LHS_plots[[2]], ncol = 2, nrow = 1,
-             top = paste(c("C = ", C), collapse = ''))
-
+grid.arrange(LHS_plots[[1]], LHS_plots[[2]], LHS_plots[[3]], LHS_plots[[4]],
+             nrow = 2, ncol = 2, top = paste(c("C = ", C), collapse = ''))
+# grid.arrange(LHS_plots[[1]], LHS_plots[[2]], ncol = 2, nrow = 1,
+#              top = paste(c("C = ", C), collapse = ''))

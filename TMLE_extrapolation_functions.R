@@ -135,10 +135,44 @@ targeting_TMLE_EY1 <- function(data, indices){
   epsilon <- glm(L1 ~ H_delta - 1, family = binomial, offset = offset_vals_Q1d_bar_0n,
                  subset = which(A0 == 1))$coefficients[1]
   
-  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon *H_delta_setting_A_to_d)
+  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
   
   # Return estimator
   mean(gn0 / gn0_delta  * Q1d_bar_star_n)
+}
+
+# TMLE of truncated target parameter, with speedglm
+TMLE_EY1_speedglm <- function(observed_data, delta, verbose = F){
+  
+  L0 <- observed_data$L0; A0 <- observed_data$A0; L1 <- observed_data$L1
+  data <- data.frame(L0 = L0, A0 = A0, L1 = L1)
+  n <- length(L0)
+  
+  # 0. Fit models for g_{n,k=0}
+  initial_model_for_A0 <- speedglm(A0 ~ 1 + L0, data, family = binomial())
+  initial_model_for_A0$coefficients[is.na(initial_model_for_A0$coefficients)] <- 0
+  gn0 <- expit(cbind(1, L0) %*% initial_model_for_A0$coefficients)
+  
+  # 1.a Fit initial model Q^1_{d,n} of Q^1_{0,d}
+  coeffs_Q1d_bar_0n <- speedglm(L1 ~ L0, subset(data, A0 == 1), family = binomial())$coefficients
+  offset_vals_Q1d_bar_0n <- as.vector(cbind(1, L0) %*% coeffs_Q1d_bar_0n)
+  Q1d_bar_0n <- expit(offset_vals_Q1d_bar_0n)
+  
+  # Compute clever covariate
+  gn0_delta <- g_to_g_delta(delta, gn0)
+  H_delta <- (A0 == 1) / gn0_delta
+  H_delta_setting_A_to_d <- 1 / gn0_delta
+  
+  data <- cbind(data, H_delta = H_delta, offset = offset_vals_Q1d_bar_0n)
+  
+  # Fit parametric submodel to training set
+  epsilon <- speedglm(L1 ~ offset(offset) + H_delta - 1,
+                      subset(data, A0 == 1), family = binomial())$coefficients[1]
+  if(verbose) cat("delta = ", delta, ", epsilon = ", epsilon, "\n")
+  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
+  
+  # Return estimator
+  mean(gn0 / gn0_delta * Q1d_bar_star_n)
 }
 
 # TMLE of truncated target parameter with 
