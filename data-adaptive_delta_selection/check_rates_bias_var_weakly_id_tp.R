@@ -46,23 +46,25 @@ observed_data <- generate_data("L0_exp", 2, 2, -3, 1.5, 1, max(ns))
 jobs <- expand.grid(n = ns, eta = etas)
 
 # Set up cluster
-cl <- makeCluster(getOption("cl.cores", detectCores()), outfile = '')
+cl <- makeCluster(getOption("cl.cores", 4), outfile = '')
 registerDoParallel(cl)
 
 results <- foreach(i=1:nrow(jobs), .combine = rbind, 
-                   .packages = c("speedglm"), .verbose = T) %dopar% {
+                   .packages = c("speedglm"), .verbose = T, .inorder = T) %dopar% {
                      
-                     n <- jobs[i, ]; eta <- jobs[i, ]
+                     n <- jobs[i, ]$n; eta <- jobs[i, ]$eta
                      
                      delta_n_plus <- n^(-1 / (2 * eta * (gamma + 1 - beta)))
                      
                      deltas <- c(deltas, delta_n_plus)
                      
                      Delta <- n^(-0.25) * delta_n_plus^((beta + 1 - gamma) / 2)
-                     cat("Delta = ", Delta, "\n")
                      
+                     cat('Job ', i, ', n = ', n, ', eta = ', eta, ', delta =', delta_n_plus, ', Delta = ', Delta, '\n')
                      Psi_n_delta_plus_Delta <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_plus + Delta)
+                     cat('Psi_n(delta + Delta) = ', Psi_n_delta_plus_Delta, '\n')
                      Psi_n_delta <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_plus)
+                     cat('Psi_n(delta) = ', Psi_n_delta, '\n')
                      
                      finite_diffs <- c(finite_diffs,
                                        (Psi_n_delta_plus_Delta - Psi_n_delta + 
@@ -84,6 +86,7 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      c(eta, n, finite_diffs, finite_diffs_bias, true_finite_diffs_bias)
                    }
 
+stopCluster(cl)
 
 plot(log(deltas), log(abs(finite_diffs_bias)), ylim = c(min(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias)))),
                                                         max(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias))))),
