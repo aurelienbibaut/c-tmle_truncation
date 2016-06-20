@@ -64,34 +64,58 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      n <- jobs[i, ]$n; eta <- jobs[i, ]$eta
                      
                      delta_n_plus <- n^(-1 / (2 * eta * (gamma + 1 - beta)))
+                     delta_n_a <- delta_n_plus * n^(-0.05)
+                     delta_n_b <- delta_n_plus * n^0.05
                      
                      Delta <- n^(-0.25) * delta_n_plus^((beta + 1 - gamma) / 2)
+                     Delta_a <- n^(-0.25) * delta_n_a^((beta + 1 - gamma) / 2)
+                     Delta_b <- n^(-0.25) * delta_n_b^((beta + 1 - gamma) / 2)
                      
                      cat('Job ', i, ', n = ', n, ', eta = ', eta, ', delta =', delta_n_plus, ', Delta = ', Delta, '\n')
                      Psi_n_delta_plus_Delta <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_plus + Delta)
+                     Psi_n_delta_plus_Delta_a <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_a + Delta_a)
+                     Psi_n_delta_plus_Delta_b <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_b + Delta_b)
                      cat('Job ', i, ', Psi_n(delta + Delta) = ', Psi_n_delta_plus_Delta, '\n')
                      Psi_n_delta <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_plus)
+                     Psi_n_delta_a <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_a)
+                     Psi_n_delta_b <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_b)
                      cat('Job ', i, ',Psi_n(delta) = ', Psi_n_delta, '\n')
+                     
                      
                      finite_diffs <- (Psi_n_delta_plus_Delta - Psi_n_delta + 
                                         n^(-0.5) * ((delta_n_plus + Delta)^(-gamma) - delta_n_plus^(-gamma))) / Delta
                      
+                     
                      finite_diffs_bias <- (Psi_n_delta_plus_Delta - Psi_n_delta) / Delta
-                     Psi_0_delta_plus_Delta <- compute_true_Psi0_delta("L0_exp", 2, 2, -3, 1.5, 1, alwaysTreated0, delta_n_plus + Delta)
-                     Psi_0_delta <- compute_true_Psi0_delta("L0_exp", 2, 2, -3, 1.5, 1, alwaysTreated0, delta_n_plus)
+                     finite_diffs_bias_a <- (Psi_n_delta_plus_Delta_a - Psi_n_delta_a) / Delta_a
+                     finite_diffs_bias_b <- (Psi_n_delta_plus_Delta_b - Psi_n_delta_b) / Delta_b
+                     Psi_0_delta_plus_Delta <- compute_true_Psi0_delta("L0_exp", 2, 2, -3, 1.5, 1, 
+                                                                       alwaysTreated0, delta_n_plus + Delta)
+                     Psi_0_delta <- compute_true_Psi0_delta("L0_exp", 2, 2, -3, 1.5, 1, 
+                                                            alwaysTreated0, delta_n_plus)
                      
                      true_finite_diffs_bias <- (Psi_0_delta_plus_Delta - Psi_0_delta) / Delta
                      
-                     c(eta, n, finite_diffs, finite_diffs_bias, true_finite_diffs_bias)
+                     c(eta, n, finite_diffs, 
+                       finite_diffs_bias,
+                       finite_diffs_bias_a,
+                       finite_diffs_bias_b,
+                       true_finite_diffs_bias)
                    }
 
 stopCluster(cl)
 
 row.names(results) <- NULL
-colnames(results) <- c('eta', 'n', 'fin_diff', 'bias.fin_diff', 'true_bias.fin_diff')
+colnames(results) <- c('eta', 'n', 'fin_diff',
+                       'bias.fin_diff',
+                       'bias.fin_diff.a',
+                       'bias.fin_diff.b',
+                       'true_bias.fin_diff')
 results <- cbind(results, delta = results[, 'n']^(- 1 / (2 * results[, 'eta'] * (gamma + 1 - beta))))
 
 results_df <- as.data.frame(rbind(cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff'], type = 'bias.fin_diff'),
+                                  cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff.a'], type = 'bias.fin_diff.a'),
+                                  cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff.b'], type = 'bias.fin_diff.b'),
                                   cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'true_bias.fin_diff'], type = 'true_bias.fin_diff')))
 results_df <- transform(results_df, n = as.numeric(as.character(n)), 
                         eta = as.numeric(as.character(eta)),
@@ -99,22 +123,34 @@ results_df <- transform(results_df, n = as.numeric(as.character(n)),
                         fin_diff = as.numeric(as.character(fin_diff)))
 
 
-plots <- list()
-for(i in 1:length(etas)){
-  data <- subset(results_df, eta == etas[i] & type == 'bias.fin_diff')
-  x1 <- min(log(data$delta)); x2 <- 0
-  y1 <- log(abs(data$fin_diff[data$delta == min(data$delta)]))
-  y2 <- y1 - 0.25 * (x2 - x1)
-  df <- data.frame(x1 = x1, x2 = x2, y1 = y1, y2 = y2)
-  plots[[i]] <- ggplot(data = data, aes(x = log(delta), y = log(abs(fin_diff)), colour = type)) + 
-    geom_line() +
-    geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, colour = "segment"), data = df) + 
-    ggtitle(substitute(list(eta) == list(x),
-                       list(x = etas[i])))
-}
+# plots <- list()
+# for(i in 1:length(etas)){
+#   data <- subset(results_df, eta == etas[i] & type == 'bias.fin_diff')
+#   x1 <- min(log(data$delta)); x2 <- 0
+#   y1 <- log(abs(data$fin_diff[data$delta == min(data$delta)]))
+#   y2 <- y1 - 0.25 * (x2 - x1)
+#   df <- data.frame(x1 = x1, x2 = x2, y1 = y1, y2 = y2)
+#   plots[[i]] <- ggplot(data = data, aes(x = log(delta), y = log(abs(fin_diff)), colour = type)) + 
+#     geom_line() +
+#     geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2, colour = "segment"), data = df) + 
+#     ggtitle(substitute(list(eta) == list(x),
+#                        list(x = etas[i])))
+# }
 
-all_etas.plot <- ggplot(subset(results_df, type == 'bias.fin_diff' & eta > 2.5), 
+all_etas.plot <- ggplot(subset(results_df, type %in% c('bias.fin_diff', 'bias.fin_diff.a', 'bias.fin_diff.b') & eta > 2.5), 
                         aes(x = log(delta), y = log(abs(fin_diff)), colour =factor(eta))) + 
+  geom_line() +
+  geom_abline(intercept = -4, slope = -beta) +
+  geom_abline(intercept = -4.1, slope = -beta) +
+  geom_abline(intercept = -4.2, slope = -beta)
+
+results_df <- cbind(results_df, track = apply(cbind(results_df$eta, 
+                                                    as.character(results_df$type)), 1, function(x) paste(c(x[1], x[2]), 
+                                                                                                         collapse = '')))
+all_etas.plot_bis <- ggplot(subset(results_df, type %in% c('bias.fin_diff', 'bias.fin_diff.a', 'bias.fin_diff.b') & eta > 2.5), 
+                            aes(x = log(delta), y = eta * log(abs(fin_diff) * delta^2) + log(n), 
+                                group = factor(track),
+                                colour = factor(eta))) + 
   geom_line() +
   geom_abline(intercept = -4, slope = -beta) +
   geom_abline(intercept = -4.1, slope = -beta) +

@@ -2,6 +2,7 @@ library(doParallel); library(foreach)
 library(ggplot2); library(gridExtra)
 library(boot)
 library(stats)
+library(speedglm)
 
 source('../utilities.R')
 source('../true_target_parameters_derivatives_and_ICs.R')
@@ -9,8 +10,17 @@ source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
 
-beta <- 0.25
-gamma <- 0.125
+# Set of parameters 1
+# lambda <- 2; alpha0 <- 2; beta0 <- -3; beta1 <- 1.5; beta2 <- 1
+# beta <- 0.25
+# gamma <- 0.125
+# kappa <- 1 / (2 * (gamma + 1 - beta))
+# Set of parameters 2
+lambda <- 2; alpha0 <- 4; beta0 <- -3; beta1 <- 1.5; beta2 <- 0.5
+kappa <- 5 / 4
+beta <- 2 - kappa
+gamma <- 1 - kappa / 2
+
 finite_diffs <- vector(); finite_diffs_bias <- vector()
 
 finite_diff_estimator.bootstrap <- function(observed_data, delta, n){
@@ -29,8 +39,8 @@ finite_diff_estimator.bootstrap <- function(observed_data, delta, n){
 
 finite_diff_estimator <- function(observed_data, delta, n){
   Delta <- n^(-0.25) * delta^((beta + 1 - gamma) / 2)
-  Psi_n_delta_plus_Delta <- TMLE_EY1(observed_data, delta + Delta)
-  Psi_n_delta <- TMLE_EY1(observed_data, delta)
+  Psi_n_delta_plus_Delta <- TMLE_EY1_speedglm(observed_data, delta + Delta)
+  Psi_n_delta <- TMLE_EY1_speedglm(observed_data, delta)
   
   (Psi_n_delta_plus_Delta - Psi_n_delta) / Delta
 }
@@ -57,7 +67,7 @@ finite_diff_estimator.subsampling <- function(observed_data, base_rate, eta, n, 
 
 # ns <- c(10^(2:6) , 2e6)
 # ns <- 10^(2:6)
-ns <- 10^c(4, 4.5)
+ns <- 10^c(6, 7)
 # ns <- c(10^(2:5), 2e5)
 # ns <- floor(c(10^seq(from = 2, to = log(2e6) / log(10), length = 20)))
 # etas <- c(1, 1.1, 1.5, 2, 3, 4)
@@ -67,7 +77,7 @@ optimal_rate <- -1 / (2 * (gamma + 1 - beta))
 # rates <- c(0.8 * optimal_rate, 0.95 * optimal_rate, 0.99 * optimal_rate,
 #            optimal_rate, 
 #            1.01 * optimal_rate, 1.05 * optimal_rate, 1.2 * optimal_rate)
-rates <- seq(from = -0.7, to = -1/3, length = 9)
+rates <- seq(from = -0.85, to = -1/3, length = 9)
 # rates <- sort(c(seq(from = -1 / (2 * 0.8 * (gamma + 1 - beta)), 
 #                     to =  -1 / (2 * 4 * (gamma + 1 - beta)), 
 #                     length = 5), 
@@ -78,7 +88,7 @@ C <- 0.3
 nb_replicates <- 1
 jobs <- expand.grid(n = ns, eta = etas, rate = rates, replicate = 1:nb_replicates)
 
-observed_data <- generate_data("L0_exp", 2, 2, -3, 1.5, 1, max(ns))
+observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, max(ns))
 
 # Prepare indices of replicates and subsamples
 replicates.indices <- list()
@@ -93,7 +103,7 @@ indices_subsamples <- list()
 for(i in 1:nb_replicates){
   indices_subsamples[[i]] <- list()
   for(j in 1:(length(ns) - 1)){
-    indices_subsamples[[i]][[j]] <- t(replicate(10, sample(replicates.indices[[i]], ns[j], F)))
+    indices_subsamples[[i]][[j]] <- t(replicate(1, sample(replicates.indices[[i]], ns[j], F)))
     # indices_subsamples[[i]] <- t(apply(resampled_indices, 1, function(x) sample(x, ns[i], F)))
   }
 }
@@ -103,13 +113,13 @@ for(i in 1:nb_replicates){
 # indices_subsamples[[length(ns)]] <- resampled_indices
 
 # Set up cluster
-cl <- makeCluster(getOption("cl.cores", 40), outfile = '')
+cl <- makeCluster(getOption("cl.cores", 20), outfile = '')
 registerDoParallel(cl)
 
 
 
 results <- foreach(i=1:nrow(jobs), .combine = rbind, 
-                   .packages = c("boot", "stats"), .verbose = T) %dopar% {
+                   .packages = c("boot", "stats", "speedglm"), .verbose = T) %dopar% {
                      n <- jobs[i, ]$n; rate <- jobs[i, ]$rate;  eta <- jobs[i, ]$eta
                      replicate <- jobs[i, ]$replicate
                      
