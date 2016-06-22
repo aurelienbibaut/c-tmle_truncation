@@ -141,6 +141,34 @@ targeting_TMLE_EY1 <- function(data, indices){
   mean(gn0 / gn0_delta  * Q1d_bar_star_n)
 }
 
+# Targeting step for TMLE of EY1 with speedglm
+targeting_TMLE_EY1_speedglm <- function(data, indices){
+  replicate_data <- data[indices, ]
+  
+  L0 <- replicate_data$L0; A0 <- replicate_data$A0; L1 <- replicate_data$L1
+  offset_vals_Q1d_bar_0n <- replicate_data$offset
+  gn0 <- replicate_data$gn0; gn0_delta <- replicate_data$gn0_delta
+  Q1d_bar_0n <- expit(offset_vals_Q1d_bar_0n)
+  
+  # Compute clever covariate
+  H_delta <- (A0 == 1) / gn0_delta
+  H_delta_setting_A_to_d <- 1 / gn0_delta
+  
+  # Fit parametric submodel
+  epsilon <- speedglm(L1 ~ offset(offset) + H_delta - 1,
+                      subset(data, A0 == 1), family = binomial())$coefficients[1]
+  # if(verbose) cat("delta = ", delta, ", epsilon = ", epsilon, "\n")
+  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
+  
+  # Influence curve and it's variance
+  IC <- (as.numeric(A0 == 1)) / gn0_delta * (L1 - Q1d_bar_star_n) +
+    gn0 / gn0_delta * Q1d_bar_star_n
+  sigma_n <- var(IC)
+  
+  # Return estimator
+  list(Psi_n = mean(gn0 / gn0_delta  * Q1d_bar_star_n), sigma_n = sigma_n)
+}
+
 # TMLE of truncated target parameter, with speedglm
 TMLE_EY1_speedglm <- function(observed_data, delta, verbose = F){
   
@@ -168,11 +196,64 @@ TMLE_EY1_speedglm <- function(observed_data, delta, verbose = F){
   # Fit parametric submodel to training set
   epsilon <- speedglm(L1 ~ offset(offset) + H_delta - 1,
                       subset(data, A0 == 1), family = binomial())$coefficients[1]
-  if(verbose) cat("delta = ", delta, ", epsilon = ", epsilon, "\n")
+  # if(verbose) cat("delta = ", delta, ", epsilon = ", epsilon, "\n")
   Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
   
+  # Influence curve and it's variance
+  IC <- (as.numeric(A0 == 1)) / gn0_delta * (L1 - Q1d_bar_star_n) +
+    gn0 / gn0_delta * Q1d_bar_star_n
+  sigma_n <- var(IC)
+  
   # Return estimator
-  mean(gn0 / gn0_delta * Q1d_bar_star_n)
+  list(Psi_n = mean(gn0 / gn0_delta * Q1d_bar_star_n),
+       sigma_n = sigma_n)
+}
+
+# TMLE of truncated target parameter with 
+# bootstrapping of the targeting step, with speedglm
+TMLE_EY1_bootstrap_speedglm <- function(observed_data, delta, nb_boostrap_samples = 1000){
+  
+  L0 <- observed_data$L0; A0 <- observed_data$A0; L1 <- observed_data$L1
+  data <- data.frame(L0 = L0, A0 = A0, L1 = L1)
+  n <- length(L0)
+  
+  # 0. Fit models for g_{n,k=0}
+  initial_model_for_A0 <- speedglm(A0 ~ 1 + L0, data, family = binomial())
+  initial_model_for_A0$coefficients[is.na(initial_model_for_A0$coefficients)] <- 0
+  gn0 <- expit(cbind(1, L0) %*% initial_model_for_A0$coefficients)
+  
+  # 1.a Fit initial model Q^1_{d,n} of Q^1_{0,d}
+  coeffs_Q1d_bar_0n <- speedglm(L1 ~ L0, subset(data, A0 == 1), family = binomial())$coefficients
+  offset_vals_Q1d_bar_0n <- as.vector(cbind(1, L0) %*% coeffs_Q1d_bar_0n)
+  Q1d_bar_0n <- expit(offset_vals_Q1d_bar_0n)
+  
+  # Compute clever covariate
+  gn0_delta <- g_to_g_delta(delta, gn0)
+  H_delta <- (A0 == 1) / gn0_delta
+  H_delta_setting_A_to_d <- 1 / gn0_delta
+  
+  # Prepare data for targeting step
+  data <- cbind(data, H_delta = H_delta, offset = offset_vals_Q1d_bar_0n,
+                gn0, gn0_delta)
+  # Fit parametric submodel to training set
+  epsilon <- speedglm(L1 ~ offset(offset) + H_delta - 1,
+                      subset(data, A0 == 1), family = binomial())$coefficients[1]
+  # if(verbose) cat("delta = ", delta, ", epsilon = ", epsilon, "\n")
+  Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
+  
+  
+  # Bootstrap targeting step + compute estimator on full data
+  full_data_Psi_n <- targeting_TMLE_EY1_speedglm(data, 1:n)
+  cat('For n=', n, ' and delta =', delta, ', Psi_n = ', full_data_Psi_n, '\n')
+  bootstrapped_Psis_n <- boot(data, targeting_TMLE_EY1_speedglm, 
+                              nb_boostrap_samples, sim = "ordinary")$t
+  
+  # Perform Shapiro Wilk's test for normality of the boostrapped estimates
+  shapiro.p_value <- shapiro.test(bootstrapped_Psis_n)$p.value
+  cat('For n = ', n, ' and delta = ', delta,
+      ', Shapiro Wilk p-value = ', shapiro.p_value, '\n')
+  
+  list(Psi_n = full_data_Psi_n, shapiro.p_value = shapiro.p_value)
 }
 
 # TMLE of truncated target parameter with 

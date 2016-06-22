@@ -27,7 +27,7 @@ finite_diff_estimator.bootstrap <- function(observed_data, delta, n){
   Delta <- n^(-0.25) * delta^((beta + 1 - gamma) / 2)
   
   Psi_n_delta_plus_Delta <- TMLE_EY1(observed_data, delta + Delta)
-  result_TMLE_delta <- TMLE_EY1_bootstrap(observed_data, delta, nb_boostrap_samples = 4)
+  result_TMLE_delta <- TMLE_EY1_bootstrap_speedglm(observed_data, delta, nb_boostrap_samples = 100)
   Psi_n_delta <- result_TMLE_delta$Psi_n
   
   return(list(fin_diff = (Psi_n_delta_plus_Delta - Psi_n_delta) / Delta,
@@ -67,7 +67,7 @@ finite_diff_estimator.subsampling <- function(observed_data, base_rate, eta, n, 
 
 # ns <- c(10^(2:6) , 2e6)
 # ns <- 10^(2:6)
-ns <- 10^c(6, 7)
+ns <- 10^c(5, 6)
 # ns <- c(10^(2:5), 2e5)
 # ns <- floor(c(10^seq(from = 2, to = log(2e6) / log(10), length = 20)))
 # etas <- c(1, 1.1, 1.5, 2, 3, 4)
@@ -77,14 +77,14 @@ optimal_rate <- -1 / (2 * (gamma + 1 - beta))
 # rates <- c(0.8 * optimal_rate, 0.95 * optimal_rate, 0.99 * optimal_rate,
 #            optimal_rate, 
 #            1.01 * optimal_rate, 1.05 * optimal_rate, 1.2 * optimal_rate)
-rates <- seq(from = -0.85, to = -1/3, length = 9)
+rates <- c(optimal_rate, seq(from = -0.85, to = -1/3, length = 9))
 # rates <- sort(c(seq(from = -1 / (2 * 0.8 * (gamma + 1 - beta)), 
 #                     to =  -1 / (2 * 4 * (gamma + 1 - beta)), 
 #                     length = 5), 
 #                 0.95 * optimal_rate, 0.99 * optimal_rate,
 #                 optimal_rate, 
 #                 1.01 * optimal_rate, 1.05 * optimal_rate))
-C <- 0.3
+C <- 0.1
 nb_replicates <- 1
 jobs <- expand.grid(n = ns, eta = etas, rate = rates, replicate = 1:nb_replicates)
 
@@ -113,7 +113,7 @@ for(i in 1:nb_replicates){
 # indices_subsamples[[length(ns)]] <- resampled_indices
 
 # Set up cluster
-cl <- makeCluster(getOption("cl.cores", 20), outfile = '')
+cl <- makeCluster(getOption("cl.cores", 32), outfile = '')
 registerDoParallel(cl)
 
 
@@ -130,18 +130,21 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      # indices <- sample(1:length(observed_data$L0), n, F)
                      if(n == max(ns)){
                        indices <- indices_subsamples[[replicate]][[which(ns == n)]]
-                       fin_diff <- finite_diff_estimator(lapply(observed_data, function(x) x[indices]), delta, n)
+                       fin_diff.TMLE.boot <- finite_diff_estimator.bootstrap(lapply(observed_data, function(x) x[indices]), delta, n)
+                       fin_diff <- fin_diff.TMLE.boot$fin_diff
+                       p_value <- fin_diff.TMLE.boot$p_val
                        LHS <- abs(fin_diff * delta^2)^eta * n
                      }else{
                        indices <- indices_subsamples[[replicate]][[which(ns == n)]]
-                       fin_diffs <- apply(indices, 1, function(y) finite_diff_estimator(lapply(observed_data, function(x) x[y]), delta, n))
-                       fin_diff <- median(fin_diffs)
+                       fin_diffs.TMLE.boot <- apply(indices, 1, function(y) finite_diff_estimator.bootstrap(lapply(observed_data, function(x) x[y]), delta, n))
+                       fin_diff <- median(sapply(fin_diffs.TMLE.boot, function(x) x$fin_diff))
+                       p_value <- median(sapply(fin_diffs.TMLE.boot, function(x) x$p_val))
                        LHS <- abs(fin_diff * delta^2)^eta * n
                      }
-                     c(n, rate, eta, replicate, LHS)
+                     c(n, rate, eta, replicate, LHS, p_value)
                    }
 stopCluster(cl)
-colnames(results) <- c("n", "base_rate", "eta", "replicate", "LHS")
+colnames(results) <- c("n", "base_rate", "eta", "replicate", "LHS", "p_value")
 # Plot the results
 results_df <- as.data.frame(results)
 
@@ -150,7 +153,8 @@ results_df_bis <- data.frame(n = results_df$n,
                                            1, function(x) paste(c(x[1], x[2]), collapse = "_")),
                              eta = results_df$eta,
                              base_rate = results_df$base_rate,
-                             LHS = results_df$LHS)
+                             LHS = results_df$LHS,
+                             p_value = results_df$p_value)
 
 results_df_bis <- transform(results_df_bis, base_rate = factor(round(base_rate, 3)))
 
@@ -198,9 +202,9 @@ for(i in 1:length(etas)){
                                            n >= 1e2), aes(x = log(n)/log(10), y = log(LHS),
                                                           group = track,
                                                           colour = base_rate)) +
-    # geom_line(aes(size = line_width)) + 
-    geom_line() + 
-    # geom_point(aes(size = p_value)) + 
+    # geom_line(aes(size = 1/p_value)) + 
+    geom_line() +
+    geom_point(aes(size = 1 / p_value)) + 
     ggtitle(substitute(list(eta) == list(x),
                        list(x = etas[i])))
 }
@@ -211,6 +215,6 @@ for(i in 1:length(etas)){
 #              top = paste(c("C = ", C), collapse = ''))
 # 
 grid.arrange(LHS_plots[[1]], LHS_plots[[2]], LHS_plots[[3]], LHS_plots[[4]],
-             nrow = 2, ncol = 2, top = paste(c("C = ", C), collapse = ''))
+             nrow = 1, ncol = 4, top = paste(c("C = ", C), collapse = ''))
 # grid.arrange(LHS_plots[[1]], LHS_plots[[2]], ncol = 2, nrow = 1,
 #              top = paste(c("C = ", C), collapse = ''))
