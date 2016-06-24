@@ -42,12 +42,13 @@ kappa <- 5 / 4
 beta <- 2 - kappa
 gamma <- 1 - kappa / 2
 
-etas <- c(3, 3.5, 4, 4.5, 5)
+# etas <- c(1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5)
+etas <- c(0.95, 1)
 finite_diffs <- vector(); finite_diffs_bias <- vector(); true_finite_diffs_bias <- vector()
-ns <- floor(10^seq(from = 2, to = 8, by = 0.5))
+ns <- floor(10^seq(from = 2, to = 6, by = 0.5))
 deltas <- vector()
 
-observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, max(ns))
+observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, 1e3)
 # data <- data.frame(L0 = observed_data$L0, A0 = observed_data$A0, L1 = observed_data$L1)
 
 
@@ -55,7 +56,7 @@ observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, ma
 jobs <- expand.grid(n = ns, eta = etas)
 
 # Set up cluster
-cl <- makeCluster(getOption("cl.cores", 5), outfile = '')
+cl <- makeCluster(getOption("cl.cores", 32), outfile = '')
 registerDoParallel(cl)
 
 results <- foreach(i=1:nrow(jobs), .combine = rbind, 
@@ -64,22 +65,39 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      n <- jobs[i, ]$n; eta <- jobs[i, ]$eta
                      
                      delta_n_plus <- n^(-1 / (2 * eta * (gamma + 1 - beta)))
-                     delta_n_a <- delta_n_plus * n^(-0.05)
-                     delta_n_b <- delta_n_plus * n^0.05
+                     # delta_n_a <- delta_n_plus * n^(-0.05)
+                     # delta_n_b <- delta_n_plus * n^0.05
                      
                      Delta <- n^(-0.25) * delta_n_plus^((beta + 1 - gamma) / 2)
-                     Delta_a <- n^(-0.25) * delta_n_a^((beta + 1 - gamma) / 2)
-                     Delta_b <- n^(-0.25) * delta_n_b^((beta + 1 - gamma) / 2)
+                     # Delta_a <- n^(-0.25) * delta_n_a^((beta + 1 - gamma) / 2)
+                     # Delta_b <- n^(-0.25) * delta_n_b^((beta + 1 - gamma) / 2)
                      
                      cat('Job ', i, ', n = ', n, ', eta = ', eta, ', delta =', delta_n_plus, ', Delta = ', Delta, '\n')
-                     Psi_n_delta_plus_Delta <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_plus + Delta)
-                     Psi_n_delta_plus_Delta_a <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_a + Delta_a)
-                     Psi_n_delta_plus_Delta_b <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_b + Delta_b)
+                     TMLE_delta_plus_Delta <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_plus + Delta)
+                     Psi_n_delta_plus_Delta <- TMLE_delta_plus_Delta$Psi_n
+                     # Psi_n_delta_plus_Delta_a <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_a + Delta_a)
+                     # Psi_n_delta_plus_Delta_b <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_b + Delta_b)
                      cat('Job ', i, ', Psi_n(delta + Delta) = ', Psi_n_delta_plus_Delta, '\n')
-                     Psi_n_delta <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_plus)
-                     Psi_n_delta_a <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_a)
-                     Psi_n_delta_b <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_b)
-                     cat('Job ', i, ',Psi_n(delta) = ', Psi_n_delta, '\n')
+                     
+                     # if(n != max(ns)){
+                     nb_observations <- length(observed_data$L0)
+                     if(n > nb_observations){
+                       indices <- t(replicate(20, sample(1:nb_observations, n, T)))
+                     }else{
+                       indices <- t(replicate(20, sample(1:nb_observations, n, F)))
+                     }
+                     
+                     TMLE_delta.results <- apply(indices, 1, function(y) TMLE_EY1_speedglm(lapply(observed_data, function(x) x[y]), 
+                                                                                           delta_n_plus))
+                     # }
+                     var_IC_delta <- median(sapply(TMLE_delta.results, function(x) x$sigma_n))
+                     Psi_n_delta <- TMLE_delta$Psi_n
+                     # var_IC_delta <- TMLE_delta$sigma_n
+                     cat('Job ', i,', Psi_n(delta) = ', Psi_n_delta, '\n')
+                     # Psi_n_delta_a <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_a)
+                     # Psi_n_delta_b <- TMLE_EY1_speedglm(lapply(observed_data, function(x) x[1:n]), delta_n_b)
+                     cat('Job ', i, ',Psi_n(', delta_n_plus, ') = ', Psi_n_delta, 
+                         'sigma_n(', delta_n_plus, ') = ', var_IC_delta, '\n')
                      
                      
                      finite_diffs <- (Psi_n_delta_plus_Delta - Psi_n_delta + 
@@ -87,40 +105,61 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      
                      
                      finite_diffs_bias <- (Psi_n_delta_plus_Delta - Psi_n_delta) / Delta
-                     finite_diffs_bias_a <- (Psi_n_delta_plus_Delta_a - Psi_n_delta_a) / Delta_a
-                     finite_diffs_bias_b <- (Psi_n_delta_plus_Delta_b - Psi_n_delta_b) / Delta_b
-                     Psi_0_delta_plus_Delta <- compute_true_Psi0_delta("L0_exp", 2, 2, -3, 1.5, 1, 
+                     
+                     # finite_diffs_bias_a <- (Psi_n_delta_plus_Delta_a - Psi_n_delta_a) / Delta_a
+                     # finite_diffs_bias_b <- (Psi_n_delta_plus_Delta_b - Psi_n_delta_b) / Delta_b
+                     finite_diffs_bias_a <- finite_diffs_bias
+                     finite_diffs_bias_b <- finite_diffs_bias
+                     
+                     Psi_0_delta_plus_Delta <- compute_true_Psi0_delta("L0_exp", lambda, alpha0, beta0, beta1, beta2,
                                                                        alwaysTreated0, delta_n_plus + Delta)
-                     Psi_0_delta <- compute_true_Psi0_delta("L0_exp", 2, 2, -3, 1.5, 1, 
+                     Psi_0_delta <- compute_true_Psi0_delta("L0_exp", lambda, alpha0, beta0, beta1, beta2, 
                                                             alwaysTreated0, delta_n_plus)
                      
                      true_finite_diffs_bias <- (Psi_0_delta_plus_Delta - Psi_0_delta) / Delta
                      
-                     c(eta, n, finite_diffs, 
-                       finite_diffs_bias,
-                       finite_diffs_bias_a,
-                       finite_diffs_bias_b,
-                       true_finite_diffs_bias)
+                     true_var_IC.result <- compute_true_var_IC_Psi0_delta("L0_exp", lambda, alpha0, beta0, beta1, beta2, 
+                                                                          alwaysTreated0, delta_n_plus)
+                     true_var_IC_delta <- true_var_IC.result$var_IC0
+                     true_var.first_comp <- true_var_IC.result$first_component
+                     true_var.first_comp.a <- true_var_IC.result$first_component.a
+                     
+                     #                      c(eta, n, finite_diffs, 
+                     #                        finite_diffs_bias,
+                     #                        finite_diffs_bias_a,
+                     #                        finite_diffs_bias_b,
+                     #                        true_finite_diffs_bias)
+                     iteration.result <- c(eta, n, finite_diffs_bias, var_IC_delta, 
+                                           true_var_IC_delta, true_var.first_comp, true_var.first_comp.a)
+                     cat('\n\n Iteration results\nJob ', i, ', eta = ', eta, ', n = ', n, '\nfin diff bias =', finite_diffs_bias, 
+                         '\nvar_IC_delta = ', var_IC_delta, 
+                         '\ntrue_var_IC_delta = ', true_var_IC_delta, '\n')
+                     # print(iteration.result)
+                     iteration.result
                    }
 
 stopCluster(cl)
 
 row.names(results) <- NULL
-colnames(results) <- c('eta', 'n', 'fin_diff',
-                       'bias.fin_diff',
-                       'bias.fin_diff.a',
-                       'bias.fin_diff.b',
-                       'true_bias.fin_diff')
+# colnames(results) <- c('eta', 'n', 'fin_diff',
+#                        'bias.fin_diff',
+#                        'bias.fin_diff.a',
+#                        'bias.fin_diff.b',
+#                        'true_bias.fin_diff')
+colnames(results) <- c('eta', 'n','bias.fin_diff', 'var_IC_delta', 
+                       'true_var_IC_delta', 'true_var.first_comp', 'true_var.first_comp.a')
 results <- cbind(results, delta = results[, 'n']^(- 1 / (2 * results[, 'eta'] * (gamma + 1 - beta))))
 
-results_df <- as.data.frame(rbind(cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff'], type = 'bias.fin_diff'),
-                                  cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff.a'], type = 'bias.fin_diff.a'),
-                                  cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff.b'], type = 'bias.fin_diff.b'),
-                                  cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'true_bias.fin_diff'], type = 'true_bias.fin_diff')))
-results_df <- transform(results_df, n = as.numeric(as.character(n)), 
-                        eta = as.numeric(as.character(eta)),
-                        delta = as.numeric(as.character(delta)),
-                        fin_diff = as.numeric(as.character(fin_diff)))
+
+# results_df <- as.data.frame(rbind(cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff'], type = 'bias.fin_diff'),
+#                                   cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff.a'], type = 'bias.fin_diff.a'),
+#                                   cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'bias.fin_diff.b'], type = 'bias.fin_diff.b'),
+#                                   cbind(results[, c('eta', 'n', 'delta')], fin_diff = results[, 'true_bias.fin_diff'], type = 'true_bias.fin_diff')))
+results_df <- as.data.frame(results)
+# results_df <- transform(results_df, n = as.numeric(as.character(n)), 
+#                         eta = as.numeric(as.character(eta)),
+#                         delta = as.numeric(as.character(delta)),
+#                         fin_diff = as.numeric(as.character(fin_diff)))
 
 
 # plots <- list()
@@ -137,24 +176,34 @@ results_df <- transform(results_df, n = as.numeric(as.character(n)),
 #                        list(x = etas[i])))
 # }
 
-all_etas.plot <- ggplot(subset(results_df, type %in% c('bias.fin_diff', 'bias.fin_diff.a', 'bias.fin_diff.b') & eta > 2.5), 
-                        aes(x = log(delta), y = log(abs(fin_diff)), colour =factor(eta))) + 
-  geom_line() +
-  geom_abline(intercept = -4, slope = -beta) +
-  geom_abline(intercept = -4.1, slope = -beta) +
-  geom_abline(intercept = -4.2, slope = -beta)
+# all_etas.plot <- ggplot(subset(results_df, type %in% c('bias.fin_diff', 'bias.fin_diff.a', 'bias.fin_diff.b') & eta > 2.5), 
+#                         aes(x = log(delta), y = log(abs(fin_diff)), colour =factor(eta))) + 
+#   geom_line() +
+#   geom_abline(intercept = -4, slope = -beta) +
+#   geom_abline(intercept = -4.1, slope = -beta) +
+#   geom_abline(intercept = -4.2, slope = -beta)
+# 
+# results_df <- cbind(results_df, track = apply(cbind(results_df$eta, 
+#                                                     as.character(results_df$type)), 1, function(x) paste(c(x[1], x[2]), 
+#                                                                                                          collapse = '')))
+# all_etas.plot_bis <- ggplot(subset(results_df, type %in% c('bias.fin_diff', 'bias.fin_diff.a', 'bias.fin_diff.b') & eta > 2.5), 
+#                             aes(x = log(delta), y = eta * log(abs(fin_diff) * delta^2) + log(n), 
+#                                 group = factor(track),
+#                                 colour = factor(eta))) + 
+#   geom_line() +
+#   geom_abline(intercept = -4, slope = -beta) +
+#   geom_abline(intercept = -4.1, slope = -beta) +
+#   geom_abline(intercept = -4.2, slope = -beta)
+all_etas.sigmas.plot <- ggplot(subset(results_df, n < 1e8 & eta > 0), aes(x = log(delta), y = log(var_IC_delta), label = round(log(n) / log(10), 1), colour = factor(eta))) +
+  geom_line() + geom_point() + geom_text() + 
+  geom_line(aes(x = log(delta), y = log(true_var_IC_delta) + 0.3, colour = factor(eta), size = 1.1)) + 
+  geom_line(aes(x = log(delta), y = log(true_var.first_comp), colour = factor(eta), linetype = '12345678')) +
+  geom_line(aes(x = log(delta), y = log(true_var.first_comp.a) + 0.8, colour = factor(eta), linetype = 'dotted')) +
+  geom_abline(intercept = -3, slope = -2 * gamma) +
+  geom_abline(intercept = -3.5, slope = -2 * gamma) +
+  geom_abline(intercept = -4, slope = -2 * gamma)
 
-results_df <- cbind(results_df, track = apply(cbind(results_df$eta, 
-                                                    as.character(results_df$type)), 1, function(x) paste(c(x[1], x[2]), 
-                                                                                                         collapse = '')))
-all_etas.plot_bis <- ggplot(subset(results_df, type %in% c('bias.fin_diff', 'bias.fin_diff.a', 'bias.fin_diff.b') & eta > 2.5), 
-                            aes(x = log(delta), y = eta * log(abs(fin_diff) * delta^2) + log(n), 
-                                group = factor(track),
-                                colour = factor(eta))) + 
-  geom_line() +
-  geom_abline(intercept = -4, slope = -beta) +
-  geom_abline(intercept = -4.1, slope = -beta) +
-  geom_abline(intercept = -4.2, slope = -beta)
+print(all_etas.sigmas.plot)
 # plot(log(deltas), log(abs(finite_diffs_bias)), ylim = c(min(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias)))),
 #                                                         max(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias))))),
 #      main= substitute(list(eta) == list(x),
