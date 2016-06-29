@@ -1,0 +1,423 @@
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.1.8)  9 MAY 2016 15:26
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**report_extrapolations.tex
+(./report_extrapolations.tex
+LaTeX2e <2011/06/27>
+Babel <3.9h> and hyphenation patterns for 10 languages loaded.
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size10.clo
+File: size10.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count79
+\c@section=\count80
+\c@subsection=\count81
+\c@subsubsection=\count82
+\c@paragraph=\count83
+\c@subparagraph=\count84
+\c@figure=\count85
+\c@table=\count86
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphicx.sty
+Package: graphicx 1999/02/16 v1.0f Enhanced LaTeX Graphics (DPC,SPQR)
+
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty
+Package: keyval 1999/03/16 v1.13 key=value parser (DPC)
+\KV@toks@=\toks14
+)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphics.sty
+Package: graphics 2009/02/05 v1.0o Standard LaTeX Graphics (DPC,SPQR)
+
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/trig.sty
+Package: trig 1999/03/16 v1.09 sin cos tan (DPC)
+)
+(/usr/share/texlive/texmf-dist/tex/latex/latexconfig/graphics.cfg
+File: graphics.cfg 2010/04/23 v1.9 graphics configuration of TeX Live
+)
+Package graphics Info: Driver file: pdftex.def on input line 91.
+
+(/usr/share/texlive/texmf-dist/tex/latex/pdftex-def/pdftex.def
+File: pdftex.def 2011/05/27 v0.06d Graphics/color for pdfTeX
+
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/infwarerr.sty
+Package: infwarerr 2010/04/08 v1.3 Providing info/warning/error messages (HO)
+)
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/ltxcmds.sty
+Package: ltxcmds 2011/11/09 v1.22 LaTeX kernel commands for general use (HO)
+)
+\Gread@gobject=\count87
+))
+\Gin@req@height=\dimen103
+\Gin@req@width=\dimen104
+)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/color.sty
+Package: color 2005/11/14 v1.0j Standard LaTeX Color (DPC)
+
+(/usr/share/texlive/texmf-dist/tex/latex/latexconfig/color.cfg
+File: color.cfg 2007/01/18 v1.5 color configuration of teTeX/TeXLive
+)
+Package color Info: Driver file: pdftex.def on input line 130.
+)
+(/usr/share/texlive/texmf-dist/tex/latex/framed/framed.sty
+Package: framed 2011/10/22 v 0.96: framed or shaded text with page breaks
+\OuterFrameSep=\skip43
+\fb@frw=\dimen105
+\fb@frh=\dimen106
+\FrameRule=\dimen107
+\FrameSep=\dimen108
+)
+(/usr/share/texlive/texmf-dist/tex/latex/base/alltt.sty
+Package: alltt 1997/06/16 v2.0g defines alltt environment
+)
+(/usr/share/texlive/texmf-dist/tex/latex/preprint/fullpage.sty
+Package: fullpage 1999/02/23 1.1 (PWD)
+\FP@margin=\skip44
+)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty
+Package: amsfonts 2013/01/14 v3.01 Basic AMSFonts support
+\@emptytoks=\toks15
+\symAMSa=\mathgroup4
+\symAMSb=\mathgroup5
+LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
+(Font)                  U/euf/m/n --> U/euf/b/n on input line 106.
+)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+Package: amsmath 2013/01/14 v2.14 AMS math features
+\@mathmargin=\skip45
+
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+Package: amstext 2000/06/29 v2.01
+
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty
+File: amsgen.sty 1999/11/30 v2.0
+\@emptytoks=\toks16
+\ex@=\dimen109
+))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty
+Package: amsbsy 1999/11/29 v1.2d
+\pmbraise@=\dimen110
+)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty
+Package: amsopn 1999/12/14 v2.01 operator names
+)
+\inf@bad=\count88
+LaTeX Info: Redefining \frac on input line 210.
+\uproot@=\count89
+\leftroot@=\count90
+LaTeX Info: Redefining \overline on input line 306.
+\classnum@=\count91
+\DOTSCASE@=\count92
+LaTeX Info: Redefining \ldots on input line 378.
+LaTeX Info: Redefining \dots on input line 381.
+LaTeX Info: Redefining \cdots on input line 466.
+\Mathstrutbox@=\box26
+\strutbox@=\box27
+\big@size=\dimen111
+LaTeX Font Info:    Redeclaring font encoding OML on input line 566.
+LaTeX Font Info:    Redeclaring font encoding OMS on input line 567.
+\macc@depth=\count93
+\c@MaxMatrixCols=\count94
+\dotsspace@=\muskip10
+\c@parentequation=\count95
+\dspbrk@lvl=\count96
+\tag@help=\toks17
+\row@=\count97
+\column@=\count98
+\maxfields@=\count99
+\andhelp@=\toks18
+\eqnshift@=\dimen112
+\alignsep@=\dimen113
+\tagshift@=\dimen114
+\tagwidth@=\dimen115
+\totwidth@=\dimen116
+\lineht@=\dimen117
+\@envbody=\toks19
+\multlinegap=\skip46
+\multlinetaggap=\skip47
+\mathdisplay@stack=\toks20
+LaTeX Info: Redefining \[ on input line 2665.
+LaTeX Info: Redefining \] on input line 2666.
+)
+(/usr/share/texlive/texmf-dist/tex/latex/tools/longtable.sty
+Package: longtable 2004/02/01 v4.11 Multi-page Table package (DPC)
+\LTleft=\skip48
+\LTright=\skip49
+\LTpre=\skip50
+\LTpost=\skip51
+\LTchunksize=\count100
+\LTcapwidth=\dimen118
+\LT@head=\box28
+\LT@firsthead=\box29
+\LT@foot=\box30
+\LT@lastfoot=\box31
+\LT@cols=\count101
+\LT@rows=\count102
+\c@LT@tables=\count103
+\c@LT@chunks=\count104
+\LT@p@ftn=\toks21
+)
+(/usr/share/texlive/texmf-dist/tex/latex/upquote/upquote.sty
+Package: upquote 2012/04/19 v1.3 upright-quote and grave-accent glyphs in verba
+tim
+)
+(./report_extrapolations.aux)
+\openout1 = `report_extrapolations.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+
+(/usr/share/texlive/texmf-dist/tex/context/base/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+\scratchcounter=\count105
+\scratchdimen=\dimen119
+\scratchbox=\box32
+\nofMPsegments=\count106
+\nofMParguments=\count107
+\everyMPshowfont=\toks22
+\MPscratchCnt=\count108
+\MPscratchDim=\dimen120
+\MPnumerator=\count109
+\makeMPintoPDFobject=\count110
+\everyMPtoPDFconversion=\toks23
+) (/usr/share/texlive/texmf-dist/tex/generic/oberdiek/pdftexcmds.sty
+Package: pdftexcmds 2011/11/29 v0.20 Utility functions of pdfTeX for LuaTeX (HO
+)
+
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/ifluatex.sty
+Package: ifluatex 2010/03/01 v1.3 Provides the ifluatex switch (HO)
+Package ifluatex Info: LuaTeX not detected.
+)
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/ifpdf.sty
+Package: ifpdf 2011/01/30 v2.3 Provides the ifpdf switch (HO)
+Package ifpdf Info: pdfTeX in PDF mode is detected.
+)
+Package pdftexcmds Info: LuaTeX not detected.
+Package pdftexcmds Info: \pdf@primitive is available.
+Package pdftexcmds Info: \pdf@ifprimitive is available.
+Package pdftexcmds Info: \pdfdraftmode found.
+)
+(/usr/share/texlive/texmf-dist/tex/latex/oberdiek/epstopdf-base.sty
+Package: epstopdf-base 2010/02/09 v2.5 Base part for package epstopdf
+
+(/usr/share/texlive/texmf-dist/tex/latex/oberdiek/grfext.sty
+Package: grfext 2010/08/19 v1.1 Manage graphics extensions (HO)
+
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/kvdefinekeys.sty
+Package: kvdefinekeys 2011/04/07 v1.3 Define keys (HO)
+))
+(/usr/share/texlive/texmf-dist/tex/latex/oberdiek/kvoptions.sty
+Package: kvoptions 2011/06/30 v3.11 Key value format for package options (HO)
+
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/kvsetkeys.sty
+Package: kvsetkeys 2012/04/25 v1.16 Key value parser (HO)
+
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/etexcmds.sty
+Package: etexcmds 2011/02/16 v1.5 Avoid name clashes with e-TeX commands (HO)
+Package etexcmds Info: Could not find \expanded.
+(etexcmds)             That can mean that you are not using pdfTeX 1.50 or
+(etexcmds)             that some package has redefined \expanded.
+(etexcmds)             In the latter case, load this package earlier.
+)))
+Package grfext Info: Graphics extension search list:
+(grfext)             [.png,.pdf,.jpg,.mps,.jpeg,.jbig2,.jb2,.PNG,.PDF,.JPG,.JPE
+G,.JBIG2,.JB2,.eps]
+(grfext)             \AppendGraphicsExtensions on input line 452.
+
+(/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg
+File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
+e
+))
+LaTeX Font Info:    Try loading font information for U+msa on input line 62.
+
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
+File: umsa.fd 2013/01/14 v3.01 AMS symbols A
+)
+LaTeX Font Info:    Try loading font information for U+msb on input line 62.
+
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
+File: umsb.fd 2013/01/14 v3.01 AMS symbols B
+)
+Package color Info: Redefining color shadecolor on input line 65.
+
+<figure/unnamed-chunk-1-1.pdf, id=1, 505.89pt x 505.89pt>
+File: figure/unnamed-chunk-1-1.pdf Graphic file (type pdf)
+
+<use figure/unnamed-chunk-1-1.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-1.pdf used on input line 66.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 66--67
+[][] 
+ []
+
+<figure/unnamed-chunk-1-2.pdf, id=2, 505.89pt x 505.89pt>
+File: figure/unnamed-chunk-1-2.pdf Graphic file (type pdf)
+
+<use figure/unnamed-chunk-1-2.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-2.pdf used on input line 68.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 68--69
+[][] 
+ []
+
+<figure/unnamed-chunk-1-3.pdf, id=3, 505.89pt x 505.89pt> [1
+
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map} <./figure/unnamed-chunk-1-1
+.pdf>]
+File: figure/unnamed-chunk-1-3.pdf Graphic file (type pdf)
+
+<use figure/unnamed-chunk-1-3.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-3.pdf used on input line 70.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 70--71
+[][] 
+ []
+
+<figure/unnamed-chunk-1-4.pdf, id=16, 505.89pt x 505.89pt> [2 <./figure/unnamed
+-chunk-1-2.pdf>]
+File: figure/unnamed-chunk-1-4.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-4.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-4.pdf used on input line 72.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 72--73
+[][] 
+ []
+
+<figure/unnamed-chunk-1-5.pdf, id=25, 505.89pt x 505.89pt> [3 <./figure/unnamed
+-chunk-1-3.pdf>]
+File: figure/unnamed-chunk-1-5.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-5.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-5.pdf used on input line 74.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 74--75
+[][] 
+ []
+
+<figure/unnamed-chunk-1-6.pdf, id=34, 505.89pt x 505.89pt> [4 <./figure/unnamed
+-chunk-1-4.pdf>]
+File: figure/unnamed-chunk-1-6.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-6.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-6.pdf used on input line 76.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 76--77
+[][] 
+ []
+
+<figure/unnamed-chunk-1-7.pdf, id=43, 505.89pt x 505.89pt> [5 <./figure/unnamed
+-chunk-1-5.pdf>]
+File: figure/unnamed-chunk-1-7.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-7.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-7.pdf used on input line 78.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 78--79
+[][] 
+ []
+
+<figure/unnamed-chunk-1-8.pdf, id=52, 505.89pt x 505.89pt> [6 <./figure/unnamed
+-chunk-1-6.pdf>]
+File: figure/unnamed-chunk-1-8.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-8.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-8.pdf used on input line 80.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 80--81
+[][] 
+ []
+
+<figure/unnamed-chunk-1-9.pdf, id=61, 505.89pt x 505.89pt> [7 <./figure/unnamed
+-chunk-1-7.pdf>]
+File: figure/unnamed-chunk-1-9.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-9.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-9.pdf used on input line 82.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 82--83
+[][] 
+ []
+
+<figure/unnamed-chunk-1-10.pdf, id=71, 505.89pt x 505.89pt> [8 <./figure/unname
+d-chunk-1-8.pdf>]
+File: figure/unnamed-chunk-1-10.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-10.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-10.pdf used on input line 84.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 84--85
+[][] 
+ []
+
+<figure/unnamed-chunk-1-11.pdf, id=80, 505.89pt x 505.89pt> [9 <./figure/unname
+d-chunk-1-9.pdf>]
+File: figure/unnamed-chunk-1-11.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-11.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-11.pdf used on input line 86.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 86--87
+[][] 
+ []
+
+<figure/unnamed-chunk-1-12.pdf, id=89, 505.89pt x 505.89pt> [10 <./figure/unnam
+ed-chunk-1-10.pdf>]
+File: figure/unnamed-chunk-1-12.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-12.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-12.pdf used on input line 88.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 88--89
+[][] 
+ []
+
+<figure/unnamed-chunk-1-13.pdf, id=98, 505.89pt x 505.89pt> [11 <./figure/unnam
+ed-chunk-1-11.pdf>]
+File: figure/unnamed-chunk-1-13.pdf Graphic file (type pdf)
+ <use figure/unnamed-chunk-1-13.pdf>
+Package pdftex.def Info: figure/unnamed-chunk-1-13.pdf used on input line 90.
+(pdftex.def)             Requested size: 452.9679pt x 452.97328pt.
+
+Overfull \hbox (15.0pt too wide) in paragraph at lines 90--91
+[][] 
+ []
+
+[12 <./figure/unnamed-chunk-1-12.pdf>] [13 <./figure/unnamed-chunk-1-13.pdf>]
+(./report_extrapolations.aux) ) 
+Here is how much of TeX's memory you used:
+ 2469 strings out of 494885
+ 34507 string characters out of 6177632
+ 89319 words of memory out of 5000000
+ 5644 multiletter control sequences out of 15000+600000
+ 8584 words of font info for 33 fonts, out of 8000000 for 9000
+ 81 hyphenation exceptions out of 8191
+ 38i,6n,24p,308b,231s stack positions out of 5000i,500n,10000p,200000b,80000s
+</usr/share/texlive/texmf-dist/fonts/type1/publi
+c/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfo
+nts/cm/cmr17.pfb>
+Output written on report_extrapolations.pdf (13 pages, 524044 bytes).
+PDF statistics:
+ 133 PDF objects out of 1000 (max. 8388607)
+ 89 compressed objects within 1 object stream
+ 0 named destinations out of 1000 (max. 500000)
+ 66 words of extra memory for PDF output out of 10000 (max. 10000000)
+

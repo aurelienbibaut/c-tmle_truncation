@@ -1,0 +1,19 @@
+% \documentclass[a4paper,11pt,oneside]{article}
+\documentclass[a4paper]{article}
+\usepackage{fullpage}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{longtable}
+
+\begin{document}
+
+\title{MSE of extrapolations}
+\author{}
+\date{}
+\maketitle
+
+<<echo = FALSE>>=
+source('~/aurelien.bibaut@gmail.com/Data_PC/PhD Berkeley/TMLE_truncation/Taylor expansion based estimator/c-tmle_truncation/process_results_extrapolations.R')
+@
+
+\end{document}

@@ -21,7 +21,7 @@ gamma <- 1 - kappa / 2
 # etas <- c(2.5, 3, 3.5, 4, 4.5, 5)
 etas <- c(2.5, 3, 4, 5)
 finite_diffs <- vector(); finite_diffs_bias <- vector(); true_finite_diffs_bias <- vector()
-ns <- floor(10^seq(from = 2, to = 8, by = 0.5))
+ns <- floor(10^seq(from = 2, to = 6.5, by = 0.5))
 deltas <- vector()
 
 observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, max(ns))
@@ -32,7 +32,7 @@ observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, ma
 jobs <- expand.grid(n = ns, eta = etas)
 
 # Set up cluster
-cl <- makeCluster(getOption("cl.cores", 5), outfile = '')
+cl <- makeCluster(getOption("cl.cores", 32), outfile = '')
 registerDoParallel(cl)
 
 results <- foreach(i=1:nrow(jobs), .combine = rbind, 
@@ -117,21 +117,27 @@ all_etas.plot_bis <- ggplot(results_df,
                                 group = factor(track),
                                 colour = factor(eta))) + 
   geom_line()
-#   geom_abline(intercept = -4, slope = -beta) +
-#   geom_abline(intercept = -4.1, slope = -beta) +
-#   geom_abline(intercept = -4.2, slope = -beta)
-all_etas.sigmas.plot <- ggplot(subset(results_df, n < 1e8 & eta > 0), aes(x = log(delta), y = log(var_IC_delta), label = round(log(n) / log(10), 1), colour = factor(eta))) +
-  geom_line() + geom_point() + geom_text() + 
-  geom_line(aes(x = log(delta), y = log(true_var_IC_delta) + 0.3, colour = factor(eta), size = 1.1)) + 
-  geom_line(aes(x = log(delta), y = log(true_var.first_comp), colour = factor(eta), linetype = '12345678')) +
-  geom_line(aes(x = log(delta), y = log(true_var.first_comp.a) + 0.8, colour = factor(eta), linetype = 'dotted')) +
-  geom_abline(intercept = -3, slope = -2 * gamma) +
-  geom_abline(intercept = -3.5, slope = -2 * gamma) +
-  geom_abline(intercept = -4, slope = -2 * gamma)
 
-print(all_etas.sigmas.plot)
-# plot(log(deltas), log(abs(finite_diffs_bias)), ylim = c(min(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias)))),
-#                                                         max(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias))))),
-#      main= substitute(list(eta) == list(x),
-#                       list(x = eta)))
-# lines(log(deltas), log(abs(true_finite_diffs_bias)))
+fin_diffs.all_etas.plot_bis <- ggplot(results_df, 
+                                      aes(x = log(delta), y = log(abs(fin_diff)), 
+                                          group = factor(track),
+                                          colour = factor(eta), label = round(log(n)/log(10), 1))) + 
+  geom_line() + geom_text() +
+  geom_abline(intercept = -4, slope = -beta) +
+  geom_abline(intercept = -4.1, slope = -beta) +
+  geom_abline(intercept = -4.2, slope = -beta)
+# all_etas.sigmas.plot <- ggplot(subset(results_df, n < 1e8 & eta > 0), aes(x = log(delta), y = log(var_IC_delta), label = round(log(n) / log(10), 1), colour = factor(eta))) +
+#   geom_line() + geom_point() + geom_text() + 
+#   geom_line(aes(x = log(delta), y = log(true_var_IC_delta) + 0.3, colour = factor(eta), size = 1.1)) + 
+#   geom_line(aes(x = log(delta), y = log(true_var.first_comp), colour = factor(eta), linetype = '12345678')) +
+#   geom_line(aes(x = log(delta), y = log(true_var.first_comp.a) + 0.8, colour = factor(eta), linetype = 'dotted')) +
+#   geom_abline(intercept = -3, slope = -2 * gamma) +
+#   geom_abline(intercept = -3.5, slope = -2 * gamma) +
+#   geom_abline(intercept = -4, slope = -2 * gamma)
+# 
+# print(all_etas.sigmas.plot)
+# # plot(log(deltas), log(abs(finite_diffs_bias)), ylim = c(min(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias)))),
+# #                                                         max(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias))))),
+# #      main= substitute(list(eta) == list(x),
+# #                       list(x = eta)))
+# # lines(log(deltas), log(abs(true_finite_diffs_bias)))
