@@ -199,14 +199,19 @@ TMLE_EY1_speedglm <- function(observed_data, delta, verbose = F){
   # if(verbose) cat("delta = ", delta, ", epsilon = ", epsilon, "\n")
   Q1d_bar_star_n <- expit(logit(Q1d_bar_0n) + epsilon * H_delta_setting_A_to_d)
   
-  # Influence curve and it's variance
+  # Influence curve and its variance
   IC <- (as.numeric(A0 == 1)) / gn0_delta * (L1 - Q1d_bar_star_n) +
     gn0 / gn0_delta * Q1d_bar_star_n
   sigma_n <- var(IC)
   
+  # Quantiles of gns
+  gns.quantiles <- quantile(gn0, probs = c(0.1, 0.5))
+  
   # Return estimator
   list(Psi_n = mean(gn0 / gn0_delta * Q1d_bar_star_n),
-       sigma_n = sigma_n)
+       sigma_n = sigma_n,
+       gns.quantile_0.025 = gns.quantiles[1],
+       gns.quantile_0.975 = gns.quantiles[2])
 }
 
 # TMLE of truncated target parameter with 

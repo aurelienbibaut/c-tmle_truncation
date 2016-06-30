@@ -24,6 +24,7 @@ finite_difference <- function(data, delta, n){
   Delta <- n^(-0.25) * delta^((beta + 1 - gamma) / 2)
   Psi_n_delta_plus_Delta <- TMLE_EY1_speedglm(data, delta + Delta)$Psi_n
   Psi_n_delta <- TMLE_EY1_speedglm(data, delta)$Psi_n
+  
   (Psi_n_delta_plus_Delta - Psi_n_delta) / Delta
 }
 
@@ -31,8 +32,8 @@ finite_difference <- function(data, delta, n){
 # etas <- c(2.5, 3, 3.5, 4, 4.5, 5)
 etas <- seq(from = 2, to = 5, by = 0.5)
 finite_diffs <- vector(); finite_diffs_bias <- vector(); true_finite_diffs_bias <- vector()
-ns <- floor(10^seq(from = 2, to = 4, by = 0.2))
-nb_observations <- 1e4
+ns <- floor(10^seq(from = 2, to = 5, by = 0.5))
+nb_observations <- 10^5
 
 delta_min <- 1e-5
 
@@ -51,7 +52,8 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      delta <- n^(-1 / (2 * eta * (gamma + 1 - beta)))
                      
                      if(n == nb_observations){
-                       indices <- matrix(1:nb_observations, nrow = 1)
+                       # indices <- matrix(1:nb_observations, nrow = 1)
+                       indices <- t(replicate(1000, sample(1:nb_observations, n, replace = T)))
                      }else if(n < nb_observations){
                        indices <- t(replicate(1000, sample(1:nb_observations, n, replace = F)))
                      }else{
@@ -62,22 +64,25 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      fin_diffs <- apply(indices, 1, function(y) finite_difference(lapply(observed_data, function(x) x[y]), delta, n))
                      fin_diff <- median(fin_diffs)
                      
+                     shapiro.p_value <- shapiro.test(fin_diffs)$p.value
+                     
                      cat('Job ', i, ', n = ', n, ', eta = ', eta, 
                          ', delta = ', delta, ', fin_diff = ', fin_diff, '\n')
-                     c(n, eta, delta, fin_diff)
+                     c(n, eta, delta, fin_diff, shapiro.p_value)
                    }
 
 
 stopCluster(cl)
 
 row.names(results) <- NULL
-colnames(results) <- c('n', 'eta', 'delta', 'fin_diff')
+colnames(results) <- c('n', 'eta', 'delta', 'fin_diff', 'shapiro.p_value')
 
 results_df <- as.data.frame(results)
 results_df <- transform(results_df, n = as.numeric(as.character(n)), 
                         eta = as.numeric(as.character(eta)),
                         delta = as.numeric(as.character(delta)),
-                        fin_diff = as.numeric(as.character(fin_diff)))
+                        fin_diff = as.numeric(as.character(fin_diff)),
+                        shapiro.p_value = as.numeric(as.character(shapiro.p_value)))
 
 # results_df <- cbind(results_df, track = apply(cbind(results_df$eta, 
 #                                                     as.character(results_df$rate.type)), 1, function(x) paste(c(x[1], x[2]), 
@@ -91,16 +96,24 @@ results_df <- transform(results_df, n = as.numeric(as.character(n)),
 # print(all_etas.plot)
 
 regression_df <- as.data.frame(cbind(log_fin_diff = log(abs(results_df$fin_diff))/log(10), 
-                                     log_delta = log(results_df$delta) / log(10)))
+                                     log_delta = log(results_df$delta) / log(10),
+                                     shapiro.p_value = results_df$shapiro.p_value,
+                                     eta = results_df$eta,
+                                     n = results_df$n))
 line_fit <- lm(formula = log_fin_diff ~ log_delta, regression_df)
 lts.line_fit <- ltsReg(regression_df$log_delta, regression_df$log_fin_diff)
 
+trimmed_regression_df <- subset(regression_df, 
+                                shapiro.p_value  >= max(quantile(regression_df$shapiro.p_value)[2], 1e-5) & 
+                                  log_delta <= quantile(regression_df$log_delta)[5])
+lts.p_val_trimmed.line_fit <-ltsReg(trimmed_regression_df$log_delta, trimmed_regression_df$log_fin_diff)
 fin_diffs.all_etas.plot <- ggplot(results_df, 
                                   aes(x = log(delta) / log(10), 
                                       y = log(abs(fin_diff)) / log(10),
                                       colour = factor(eta),
                                       label = round(log(n) / log(10), 1))) + 
-  geom_line() + geom_text() +
+  geom_line() + geom_text() + geom_point(aes(size = shapiro.p_value)) +
+  geom_point(data = trimmed_regression_df, aes(x = log_delta, y = log_fin_diff), shape = 0, size = 10) +
   geom_abline(intercept = -2, slope = -beta, linetype = 'dashed') +
   geom_abline(intercept = -2.1, slope = -beta, linetype = 'dashed') +
   geom_abline(intercept = -2.2, slope = -beta, linetype = 'dashed') +
@@ -108,6 +121,8 @@ fin_diffs.all_etas.plot <- ggplot(results_df,
               slope = line_fit$coefficients["log_delta"], colour = 'blue', size = 1) +
   geom_abline(intercept = lts.line_fit$raw.coefficients[1],
               slope = lts.line_fit$raw.coefficients[2], colour = 'green', size = 1) +
+  geom_abline(intercept = lts.p_val_trimmed.line_fit$raw.coefficients[1],
+              slope = lts.p_val_trimmed.line_fit$raw.coefficients[2], colour = 'red', size = 1) +
   ggtitle(substitute(group("(", list(Lambda, alpha[0], beta[0], beta[1], beta[2]),")") ==
                        group("(",list(lambda, alpha0, beta0, beta1, beta2),")"),
                      list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, beta1 = beta1, beta2 = beta2)))
