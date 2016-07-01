@@ -41,7 +41,7 @@ We have to find a surrogate risk that is easier to estimate from the data. Let $
 
 \subsection{Estimating $b'_0(\delta)$}
 
-Define the "true finite difference" $\Delta b_n(\delta) = \frac{R_n(\delta + \Delta) - R_n(\delta)}{\Delta}$
+Define the "true finite difference" $\Delta b_0(\delta) = \frac{b_0(\delta + \Delta) - b_0(\delta)}{\Delta}$
 
 Denote the estimated finite difference $\widehat{\Delta b}_n(\delta) = \frac{\hat{b}_n(\delta + \Delta) - \hat{b}_n(\delta)}{\Delta} = \frac{\hat{\Psi}_n(\delta + \Delta) - \hat{\Psi}_n(\delta)}{\Delta}$.
 
@@ -171,7 +171,7 @@ That's hopeful since picking a small $\tilde{\epsilon}$ is probably practically 
 
 \section{Theoeretical result}
 
-Given the above, I have proved (I or shouldn't be too for from having proven) the following theorem:
+Given the above, I guess we can prove the following theorem:
 
 \begin{thm}
 Assume there exist $1 > \beta \geq 0$ and $1/2 > \gamma \geq 0$ such that $b_0(\delta) \sim \delta^{1 - \beta}$, $b_0'(\delta) \sim \delta^{-\beta}$, $\beta_0''(\delta) \sim \delta^{-\beta - 1}$, $\sigma_0(\delta) \sim \delta^{-\gamma}$, 
