@@ -169,18 +169,17 @@ find_gamma <- function(observed_data, deltas){
   delta_min <- max(results[log_var_IC_delta >= log_var_max, 'delta'])
   delta_max <- max(results[log_var_IC_delta >= log_var_min, 'delta'])
   
-  results <- cbind(results, in_range = results_n[, 'delta'] <= delta_max & results_n[, 'delta'] >= delta_min)
+  results <- cbind(results, in_range = results[, 'delta'] <= delta_max & results[, 'delta'] >= delta_min)
   
   regression_df <- subset(data.frame(results), delta <= delta_max & delta >= delta_min)
   regression_df <- cbind(regression_df, log_delta = log(regression_df$delta) / log(10),
                          log_var_IC = log(regression_df$var_IC_delta) / log(10))
   lts_fit <- ltsReg(regression_df$log_delta, regression_df$log_var_IC)
-  ols_fit <- lm(log_delta ~ log_var_IC, regression_df)
+  ols_fit <- lm(log_var_IC ~ log_delta, regression_df)
   results_df <- as.data.frame(results)
   
   sigmas_ns.plot <- ggplot(results_df, aes(x = log(delta) / log(10), 
-                                           y = log(var_IC_delta) / log(10), 
-                                           colour = factor(n))) + 
+                                           y = log(var_IC_delta) / log(10))) + 
     geom_line(aes(size = factor(in_range))) + 
     geom_abline(intercept = -1, slope = - 2 * gamma) +
     geom_hline(yintercept =  log_var_max, colour = 'red') +
