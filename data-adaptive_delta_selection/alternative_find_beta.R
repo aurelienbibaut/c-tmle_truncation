@@ -66,10 +66,10 @@ results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      fin_diff <- finite_difference_for_boot(observed_data.df, 1:n, delta, Delta)
                      fin_diff.bootstrap <- boot(data = observed_data.df,
                                                 statistic = finite_difference_for_boot,
-                                                R = 10, sim = 'ordinary',
+                                                R = 1000, sim = 'ordinary',
                                                 delta = delta, Delta = Delta)$t
                      shapiro.p_value <- 0
-                     try(shapiro.p_value <- shapiro.test(fin_diff.bootstrap)$p_value)
+                     try(shapiro.p_value <- shapiro.test(fin_diff.bootstrap)$p.value)
                      if(is.null(shapiro.p_value)) shapiro.p_value <- 0
                      
                      c(delta, jobs[i, ]$Delta.delta_rate, fin_diff, shapiro.p_value)

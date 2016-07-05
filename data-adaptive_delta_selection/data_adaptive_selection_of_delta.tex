@@ -78,6 +78,16 @@ A &\sim Bernouilli(expit(\alpha_0 W)) \\
 Y &\sim Bernouilli(expit(\beta_0 + \beta_1 A+ \beta_2 W))
 \end{align*}
 
+\textbf{True rates for these data generating distributions:}
+
+If $\beta_2 > 0$, $b_0(\delta) \sim \delta^{-1 + \frac{\lambda^{-1} + \alpha_0 + \beta_2}{\alpha_0}}$ and thus $\beta = 2 - \frac{\lambda^{-1} + \alpha_0 + \beta_2}{\alpha_0}$. Also, $\sigma_0^2(\delta) = \delta^{-2 + \frac{\lambda^{-1} + \alpha_0 + \beta_2}{\alpha_0}}$ and thus $\gamma = 1 - \frac{\lambda^{-1} + \alpha_0 + \beta_2}{\alpha_0}$.
+The optimal rate is then $\frac{\alpha_0}{\alpha_0 + \lambda^{-1} + \beta_2}$.
+
+If $\beta_2 < 0$, $b_0(\delta) \sim \delta^{-1 + \frac{\lambda^{-1} + \alpha_0}{\alpha_0}}$ and thus $\beta = 2 - \frac{\lambda^{-1} + \alpha_0}{\alpha_0}$. Also, $\sigma_0^2(\delta) = \delta^{-2 + \frac{\lambda^{-1} + \alpha_0 + |\beta_2|}{\alpha_0}}$ and thus $\gamma = 1 - \frac{\lambda^{-1} + \alpha_0 + |\beta_2|}{\alpha_0}$.
+The optimal rate is then $\frac{\alpha_0}{\alpha_0 + \lambda^{-1} - |\beta_2|}$.
+
+\bigskip
+
 Here is what I got for $(\lambda, \alpha_0, \beta_0, \beta_1, \beta_2) = (2, 2, -3, 1.5, 1)$ and $(\lambda, \alpha_0, \beta_0, \beta_1, \beta_2) = (2, 4, -3, 1.5, 0.5)$. These specifications of the data-generating distribution make $EY_1$ weakly identifiable.
 
 \begin{figure}[!htbp]
