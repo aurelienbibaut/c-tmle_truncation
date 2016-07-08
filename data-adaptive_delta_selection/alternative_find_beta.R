@@ -97,3 +97,55 @@ fin_diffs.plot <- ggplot(results_df,
                      list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, beta1 = beta1, beta2 = beta2)))
 
 print(fin_diffs.plot)
+
+# Find beta
+results_df <- cbind(results_df, log_delta = log(results_df$delta) / log(10),
+                    log_p_value = log(results_df$p_value) / log(10))
+
+# Find the right window of log_deltas where to fit the linear regression and do it
+moving_windows.fits <- function(results_df){
+  regression_df <- data.frame(log_delta = log(results_df$delta) / log(10), 
+                              log_fin_diff = log(abs(results_df$fin_diff)) / log(10),
+                              p_value = results_df$p_value)
+  regression_df <- subset(regression_df, is.finite(log_fin_diff) & p_value != 0)
+  
+  regressions.results <- vector()
+  sorted_log_delta <- sort(unique(regression_df$log_delta))
+  for(id_lower_bound in 1:(length(sorted_log_delta) - 5)){
+    for(id_upper_bound in (id_lower_bound + 5):length(sorted_log_delta)){
+      lower_bound <- sorted_log_delta[id_lower_bound]
+      upper_bound <- sorted_log_delta[id_upper_bound]
+      in_window_subset <- subset(regression_df, log_delta >= lower_bound &
+                                   log_delta <= upper_bound)
+      lm.out <- lm(log_fin_diff ~ log_delta, in_window_subset)
+      regressions.results <- rbind(regressions.results,
+                                   c(lower_bound = lower_bound, 
+                                     upper_bound = upper_bound,
+                                     r_squared  = summary(lm.out)$r.squared,
+                                     nb_points  = nrow(in_window_subset),
+                                     avg_log_p_value = mean(log(in_window_subset$p_value) / log(10)),
+                                     intercept = as.numeric(lm.out$coefficients[1]),
+                                     slope = as.numeric(lm.out$coefficients[2]),
+                                     true_beta = beta))
+    }
+  }
+  regressions.results
+}
+
+
+
+# Fit p-value cutoff
+lambda <- 0.01
+log_p_value_cutoff <- (1 - lambda) * max(results_df$log_p_value) + lambda * min(results_df$log_p_value)
+while(nrow(subset(results_df, log_p_value > log_p_value_cutoff)) < 10 * length(Delta.delta_rates)){
+  lambda <- lambda + 0.01
+  log_p_value_cutoff <- (1 - lambda) * max(results_df$log_p_value) + lambda * min(results_df$log_p_value)
+  lower_log_delta_bound <- min(subset(results_df, log_p_value > log_p_value_cutoff, select = log_delta))
+  upper_log_delta_bound <- max(subset(results_df, log_p_value > log_p_value_cutoff, select = log_delta))
+}
+
+plot(results_df$log_delta, results_df$log_p_value)
+abline(h = log_p_value_cutoff)
+abline(v = lower_log_delta_bound); abline(v = upper_log_delta_bound)
+
+moving_windows.fits.results <- moving_windows.fits(subset(results_df, log_p_value > log_p_value_cutoff))
