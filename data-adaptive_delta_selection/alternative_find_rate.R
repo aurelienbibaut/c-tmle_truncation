@@ -16,11 +16,13 @@ library(robustbase); library(speedglm)
 # gamma <- 0.125
 # kappa <- 1 / (2 * (gamma + 1 - beta))
 # Set of parameters 2
-lambda <- 2; alpha0 <- 4; beta0 <- -3; beta1 <- 1.5; beta2 <- 0.5
-kappa <- 5 / 4
-beta <- 2 - kappa
-gamma <- 1 - kappa / 2
-
+# lambda <- 2; alpha0 <- 4; beta0 <- -3; beta1 <- 1.5; beta2 <- 0.5
+# kappa <- 5 / 4
+# beta <- 2 - kappa
+# gamma <- 1 - kappa / 2
+# Set of parameters 3
+lambda <- 2; alpha0 <- 4; beta2 <- -3; beta0 <- -1; beta1 <- 1
+beta <- 7/8; gamma <- 5/16
 
 # Define inference functions ----------------------------------------------
 
@@ -38,7 +40,7 @@ find_beta <- function(observed_data, deltas, Delta.delta_rates){
   n <- length(observed_data$L0)
   
   # Set up cluster
-  cl <- makeCluster(getOption("cl.cores", 32), outfile = '')
+  cl <- makeCluster(getOption("cl.cores", 40), outfile = '')
   registerDoParallel(cl)
   
   results <- foreach(i=1:nrow(jobs), .combine = rbind, .export = c('finite_difference_for_boot', 'beta', 'gamma', 'kappa',
@@ -57,6 +59,11 @@ find_beta <- function(observed_data, deltas, Delta.delta_rates){
                                                   statistic = finite_difference_for_boot,
                                                   R = 100, sim = 'ordinary',
                                                   delta = delta, Delta = Delta)$t
+                       # Outlier detection and correction
+                       if(fin_diff < quantile(fin_diff.bootstrap, c(0.1, 0.9))[1] |
+                          fin_diff > quantile(fin_diff.bootstrap, c(0.1, 0.9))[2]){
+                         fin_diff <- median(fin_diff.bootstrap)
+                       }
                        shapiro.p_value <- 0
                        try(shapiro.p_value <- shapiro.test(fin_diff.bootstrap)$p.value)
                        if(is.null(shapiro.p_value)) shapiro.p_value <- 0
