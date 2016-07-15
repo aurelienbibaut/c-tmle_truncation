@@ -25,6 +25,10 @@ library(boot); library(segmented)
 lambda <- 2; alpha0 <- 4; beta2 <- -3; beta0 <- -1; beta1 <- 1
 beta <- 7/8; gamma <- 5/16
 
+# Simulate data
+n <- 10^4.5
+observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, n)
+
 # Define inference functions ----------------------------------------------
 
 # Wrapper for bootstrap of the variance of the IC of Psi_n(delta)
@@ -127,7 +131,13 @@ fit_broken_line <- function(results_df, nb_breakpoints = 1, plotting = F){
   initial_breakpoints <- quantile(regression_df$log_delta, (1:nb_breakpoints) / (nb_breakpoints + 1))
   
   lm.out <- lm(log_var_IC_delta ~ log_delta, regression_df)
-  segmented.out <- segmented.lm(lm.out, seg.Z=~log_delta, psi = initial_breakpoints)
+  segmented.fit.sucess <- F; nb_its <- 0
+  while(!segmented.fit.sucess){
+    try.out <- try(segmented.out <- segmented.lm(lm.out, seg.Z=~log_delta, psi = initial_breakpoints))
+    if(paste(class(try.out), collapse = '') != "try-error") segmented.fit.sucess <- T
+    nb_its <- nb_its + 1
+    if(nb_its > 15) stop('Could not fit broken line')
+  }
   broken_line_df <- as.data.frame(cbind(intercept = as.vector(intercept(segmented.out)$log_delta),
                                         slope = as.vector(slope(segmented.out)$log_delta[, 1])))
   
@@ -168,20 +178,24 @@ fit_broken_line <- function(results_df, nb_breakpoints = 1, plotting = F){
   }
   RSS <- sum(broken_line_points_df$RSS)
   nb_parameters <- (nb_breakpoints + 1) * 3
-  BIC <- -log(RSS) + 0.5 * nb_parameters * log(nrow(regression_df))
+  BIC <- -log(RSS) + 0.25 * nb_parameters * log(nrow(regression_df))
   
   # Score the segments
   segments.squared_lengths <- (broken_line_points_df$x.end - broken_line_points_df$x.start)^2 +
     (broken_line_points_df$y.end - broken_line_points_df$y.start)^2
   
-  scores <- rank(-broken_line_points_df$r_squared)^2 +
-    rank(-broken_line_points_df$avg_log_p_value)^2 + 
-    broken_line_points_df$leftmost + 
+  scores <- 2*rank(-broken_line_points_df$r_squared)^2 +
+    -0.5 * log(1 - broken_line_points_df$r_squared) / log(10) * (broken_line_points_df$nb_points > 6)
+  rank(-broken_line_points_df$avg_log_p_value)^2 + 
+    -(broken_line_points_df$leftmost == 2) + 
     -(broken_line_points_df$nb_points / max(broken_line_points_df$nb_points) * nrow(broken_line_df))^2 +
     -2 * segments.squared_lengths / max(segments.squared_lengths) +
     0.25 * rank(broken_line_df$slope) + 
-    1e6  * as.numeric(broken_line_df$slope > 0)
+    1e6  * as.numeric(broken_line_df$slope > 0 | broken_line_df$slope < -1)
+  scores <- 2 * rank(-broken_line_points_df$r)
   cat('Segment scores, from left to right:')
+  
+  print(broken_line_points_df)
   print(scores)
   # browser()
   gamma_hat <- -broken_line_df$slope[which.min(scores)] / 2
@@ -209,9 +223,7 @@ cat(detectCores(), 'cores detected\n')
 cl <- makeCluster(getOption("cl.cores", detectCores()), outfile = '')
 registerDoParallel(cl)
 
-# Simulate data
-n <- 10^4.5
-observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, n)
+
 
 # Set up tasks
 deltas <- 10^seq(from = -5, to = -0.8, by = 0.05)
@@ -261,11 +273,21 @@ var_IC.plot <- ggplot(results_df,
 
 # Restrict the domain of study by cropping the curve
 # log_var_min <- 0.9 * min(results_df$log_var_IC_delta) + 0.1 * max(results_df$log_var_IC_delta)
+
 log_var_min <- min(results_df$log_var_IC_delta)
 log_var_max <- 0.1 * min(results_df$log_var_IC_delta) + 0.9 * max(results_df$log_var_IC_delta)
 delta_min <- max(results_df$delta[results_df$log_var_IC_delta >= log_var_max])
 delta_max <- max(results_df$delta[results_df$log_var_IC_delta >= log_var_min])
 
+# Is there a discontinuity (probably due to numerical issues)
+nb_points <- length(results_df$log_var_IC_delta)
+first_diff <- abs(results_df$log_var_IC_delta[2:nb_points] - results_df$log_var_IC_delta[1:(nb_points - 1)])
+jumps <- abs(first_diff) > 20 * mean(abs(first_diff))
+if(any(jumps)){
+  delta_first_jump <- max(results_df$delta[which(jumps) + 1])
+  delta_min <- max(delta_first_jump, delta_min)
+  log_var_max <- results_df$log_var_IC_delta[which(results_df$delta == delta_min)]
+}
 var_IC.plot <- var_IC.plot + geom_hline(yintercept = log_var_min) +
   geom_hline(yintercept = log_var_max) +
   geom_vline(xintercept = log(delta_min) / log(10)) + 
@@ -276,13 +298,15 @@ print(var_IC.plot)
 results_df <- cbind(results_df, in_range = results_df$delta <= delta_max & results_df$delta >= delta_min)
 
 # Fit a segmented regression on the search range
-broken_lines_fits.BIC <- sapply(1:4, function(nb_breakpoints){
-  BIC <- Inf
-  try(BIC <- fit_broken_line(results_df, nb_breakpoints, F)$BIC)
-  BIC
-})
-cat(which.min(broken_lines_fits.BIC), ' breakpoints selected based on BIC\n')
-broken_lines.final_fit <- fit_broken_line(results_df, which.min(broken_lines_fits.BIC), T)
+# broken_lines_fits.BIC <- sapply(1:4, function(nb_breakpoints){
+# BIC <- Inf
+# try(BIC <- fit_broken_line(results_df, nb_breakpoints, F)$BIC)
+# BIC
+# })
+# cat(which.min(broken_lines_fits.BIC), ' breakpoints selected based on BIC\n')
+# broken_lines.final_fit <- fit_broken_line(results_df, which.min(broken_lines_fits.BIC), T)
+broken_lines.final_fit <- fit_broken_line(results_df, 2, T)
+
 
 # Find main direction of fits ---------------------------------------------
 main_directions_fits.results <- main_directions_fits(results_df, min_gap = 5)
