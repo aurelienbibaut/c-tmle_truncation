@@ -79,14 +79,17 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
   BIC <- -log(RSS) + 0.25 * nb_parameters * log(nrow(regression_df))
   
   # Figure out which segment is best
-  broken_line_points_df$losses <- sapply(broken_line_points_df$slope, function(x) (abs(x) - beta)^2 + 1e6 * as.numeric(x < -1 | x > 0))
-  broken_line_points_df$is_best[which.min(broken_line_points_df$losses)] <- 1
+  broken_line_points_df$loss <- sapply(broken_line_points_df$slope, function(x) (abs(x) - beta)^2 + 1e6 * as.numeric(x < -1 | x > 0))
+  broken_line_points_df$is_best[which.min(broken_line_points_df$loss)] <- 1
   
   # Score the segments
   segments.squared_lengths <- (broken_line_points_df$x.end - broken_line_points_df$x.start)^2 +
     (broken_line_points_df$y.end - broken_line_points_df$y.start)^2
   
-  broken_line_points_df[, 'segment.squared_length'] <- segments.squared_lengths
+  broken_line_points_df$segment.squared_length <- segments.squared_lengths
+  broken_line_points_df$relative_segment_squared_length <- segments.squared_lengths / max(segments.squared_lengths)
+  broken_line_points_df$linearity <- -log(1 - broken_line_points_df$r_squared) / log(10)
+  broken_line_points_df$relative_linearity <- broken_line_points_df$linearity / max(broken_line_points_df$linearity)
   
   scores <- 2*rank(-broken_line_points_df$r_squared)^2 +
     -0.5 * log(1 - broken_line_points_df$r_squared) / log(10) * (broken_line_points_df$nb_points > 6)
