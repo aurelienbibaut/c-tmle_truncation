@@ -99,7 +99,7 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
     -2 * segments.squared_lengths / max(segments.squared_lengths) +
     0.25 * rank(broken_line_df$slope) + 
     1e6  * as.numeric(broken_line_df$slope > 0 | broken_line_df$slope < -1)
-  scores <- 2 * rank(-broken_line_points_df$r)
+  
   cat('Segment scores, from left to right:')
   
   print(broken_line_points_df)
