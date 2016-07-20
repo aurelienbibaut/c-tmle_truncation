@@ -21,7 +21,7 @@ compute_variance_for_boot <- function(data, indices, delta){
 # This includes nice plotting
 
 # Fit a broken line to the in-range area of the curve
-fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max, plotting = F){
+fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max, gamma, plotting = F){
   regression_df <- subset(results_df, in_range == T)
   
   initial_breakpoints <- quantile(regression_df$log_delta, (1:nb_breakpoints) / (nb_breakpoints + 1))
@@ -79,7 +79,8 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
   BIC <- -log(RSS) + 0.25 * nb_parameters * log(nrow(regression_df))
   
   # Figure out which segment is best
-  broken_line_points_df$loss <- sapply(broken_line_points_df$slope, function(x) (abs(x) - beta)^2 + 1e6 * as.numeric(x < -1 | x > 0))
+  # browser()
+  broken_line_points_df$loss <- sapply(broken_line_points_df$slope, function(x) (abs(x) - 2 * gamma)^2 + 1e6 * as.numeric(x < -1 | x > 0))
   broken_line_points_df$is_best[which.min(broken_line_points_df$loss)] <- 1
   
   # Score the segments
@@ -202,8 +203,10 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
   jumps <- abs(first_diff) > 20 * mean(abs(first_diff))
   if(any(jumps)){
     delta_first_jump <- max(results_df$delta[which(jumps) + 1])
-    delta_min <- max(delta_first_jump, delta_min)
-    log_var_max <- results_df$log_var_IC_delta[which(results_df$delta == delta_min)]
+    if(sum(results_df$delta <= delta_max & results_df$delta >= delta_min) >= 10){
+      delta_min <- max(delta_first_jump, delta_min)
+      log_var_max <- results_df$log_var_IC_delta[which(results_df$delta == delta_min)]
+    }
   }
   var_IC.plot <- var_IC.plot + geom_hline(yintercept = log_var_min) +
     geom_hline(yintercept = log_var_max) +
@@ -214,5 +217,5 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
   
   results_df <- cbind(results_df, in_range = results_df$delta <= delta_max & results_df$delta >= delta_min)
   
-  broken_lines.final_fit <- fit_broken_line(results_df, 2, delta_min, delta_max)
+  broken_lines.final_fit <- fit_broken_line(results_df, 2, delta_min, delta_max, gamma)
 }
