@@ -35,7 +35,7 @@ for(job in jobs){
                                                                         parameters_grid[job, ]$n, 
                                                                         current_data_generating_distributions.parameters$gamma,
                                                                         plotting = F)$broken_line_points_df)
-  try(stopCluster())
+  try(closeCluster(cl)())
   if(!is.null(current_broken_line.result)){
     cat('For job')
     print(parameters_grid[job, ])

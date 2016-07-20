@@ -146,7 +146,8 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
                        
                        c(delta, var_IC, shapiro.p_value)
                      }
-  stopCluster(cl)
+  closeCluster(cl)
+  mpi.exit()
   
   row.names(results) <- NULL
   colnames(results) <- c('delta', 'var_IC', 'p_value')
@@ -169,7 +170,8 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
     ylab(expression(log[10](sigma[n]^2*(delta)))) +
     ggtitle(substitute(group("(", list(Lambda, alpha[0], beta[0], beta[1], beta[2], 'n'),")") ==
                          group("(",list(lambda, alpha0, beta0, beta1, beta2, n),")"),
-                       list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, beta1 = beta1, beta2 = beta2, n = n)))
+                       list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, 
+                            beta1 = beta1, beta2 = beta2, n = n)))
   }
   # Find gamma --------------------------------------------------------------
   
