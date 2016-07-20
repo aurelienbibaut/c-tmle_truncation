@@ -80,11 +80,8 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
   BIC <- -log(RSS) + 0.25 * nb_parameters * log(nrow(regression_df))
   
   # Figure out which segment is best
-  # browser()
   broken_line_points_df$loss <- sapply(broken_line_points_df$slope, function(x) (abs(x) - 2 * gamma)^2 + 1e6 * as.numeric(x < -1 | x > 0))
-  broken_line_points_df$is_best[which.min(broken_line_points_df$loss)] <- 1
   
-  # Score the segments
   segments.squared_lengths <- (broken_line_points_df$x.end - broken_line_points_df$x.start)^2 +
     (broken_line_points_df$y.end - broken_line_points_df$y.start)^2
   
@@ -101,8 +98,6 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
                   slope = as.numeric(broken_line_df$slope[which.min(broken_line_points_df$loss)]),
                   colour = 'red', linetype = 'dotted')
     print(var_IC.plot_with_broken_segments)
-  }else{
-    var_IC.plot_with_broken_segments <- NULL
   }
   
   cat('With ', nb_breakpoints, ', RSS = ', RSS, ', and BIC = ', BIC, '\n')
@@ -147,7 +142,6 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
                        c(delta, var_IC, shapiro.p_value)
                      }
   closeCluster(cl)
-  mpi.exit()
   
   row.names(results) <- NULL
   colnames(results) <- c('delta', 'var_IC', 'p_value')
@@ -206,5 +200,16 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
   
   results_df <- cbind(results_df, in_range = results_df$delta <= delta_max & results_df$delta >= delta_min)
   
-  broken_lines.final_fit <- fit_broken_line(results_df, 2, delta_min, delta_max, gamma, plotting = F, var_IC.plot = F)
+  broken_lines.1bp_fit <- cbind(fit_broken_line(results_df, 1, delta_min, delta_max, gamma, 
+                                                plotting = plotting, var_IC.plot = var_IC.plot)$broken_line_points_df,
+                                n = n, n_breakpoints = 1)
+  broken_lines.2bp_fit <- cbind(fit_broken_line(results_df, 2, delta_min, delta_max, gamma, 
+                                                plotting = plotting, var_IC.plot = var_IC.plot)$broken_line_points_df,
+                                n = n, n_breakpoints = 2)
+  
+  broken_lines.results <- rbind(broken_lines.1bp_fit, broken_lines.2bp_fit)
+  broken_lines.results$is_best <- rep(0, 5)
+  broken_lines.results$is_best[which.min(broken_lines.results$loss)] <- 1
+  
+  broken_lines.results
 }

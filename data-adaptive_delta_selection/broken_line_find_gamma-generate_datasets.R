@@ -13,7 +13,7 @@ data_generating_distributions.parameters[[3]] <- list(lambda = 2, alpha0 = 4, be
 ns <- floor(c(10^3.5, 10^4, 10^4.5))
 
 # Define jobs
-nb_repeats <- 20
+nb_repeats <- 50
 parameters_grid <- expand.grid(distribution_id = 1:length(data_generating_distributions.parameters), n = ns)
 jobs <- sample(kronecker(1:nrow(parameters_grid), rep(1, nb_repeats)))
 jobs_completed <- vector()
