@@ -1,4 +1,4 @@
-source('./broken_line_find_gamma-functions.R')
+source('./broken_line_find_gamma-functions-mpi.R')
 
 data_generating_distributions.parameters <- list()
 # Set of parameters 1
@@ -34,7 +34,7 @@ for(job in jobs){
                                                                         current_data_generating_distributions.parameters$beta2, 
                                                                         parameters_grid[job, ]$n, 
                                                                         current_data_generating_distributions.parameters$gamma,
-                                                                        plotting = T)$broken_line_points_df)
+                                                                        plotting = F)$broken_line_points_df)
   try(stopCluster())
   if(!is.null(current_broken_line.result)){
     cat('For job')

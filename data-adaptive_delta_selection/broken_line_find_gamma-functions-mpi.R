@@ -3,8 +3,9 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
-library(ggplot2); library(gridExtra); library(grid)
-library(foreach); library(doParallel)
+library(Rmpi); library(doMPI)
+
+
 library(robustbase); library(speedglm)
 library(boot); library(segmented)
 
@@ -21,7 +22,7 @@ compute_variance_for_boot <- function(data, indices, delta){
 # This includes nice plotting
 
 # Fit a broken line to the in-range area of the curve
-fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max, gamma, plotting = F, var_IC.plot = var_IC.plot){
+fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max, gamma, plotting = F, var_IC.plot = NULL){
   regression_df <- subset(results_df, in_range == T)
   
   initial_breakpoints <- quantile(regression_df$log_delta, (1:nb_breakpoints) / (nb_breakpoints + 1))
@@ -100,6 +101,8 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
                   slope = as.numeric(broken_line_df$slope[which.min(broken_line_points_df$loss)]),
                   colour = 'red', linetype = 'dotted')
     print(var_IC.plot_with_broken_segments)
+  }else{
+    var_IC.plot_with_broken_segments <- NULL
   }
   
   cat('With ', nb_breakpoints, ', RSS = ', RSS, ', and BIC = ', BIC, '\n')
@@ -110,9 +113,8 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
 
 generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, beta1, beta2, n, gamma, plotting = F){
   # Set up cluster
-  cat(detectCores(), 'cores detected\n')
-  cl <- makeCluster(getOption("cl.cores", detectCores()), outfile = '')
-  registerDoParallel(cl)
+  cl <- startMPIcluster(72)
+  registerDoMPI(cl)
   
   # Set up tasks
   deltas <- 10^seq(from = -5, to = -0.8, by = 0.05)
@@ -155,6 +157,7 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
                       log_p_value = log(results_df$p_value) / log(10))
   
   # Make plot of finite differences
+  if(plotting){
   var_IC.plot <- ggplot(results_df, 
                         aes(x = log_delta, 
                             y = log_var_IC_delta)) + 
@@ -167,7 +170,7 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
     ggtitle(substitute(group("(", list(Lambda, alpha[0], beta[0], beta[1], beta[2], 'n'),")") ==
                          group("(",list(lambda, alpha0, beta0, beta1, beta2, n),")"),
                        list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, beta1 = beta1, beta2 = beta2, n = n)))
-  
+  }
   # Find gamma --------------------------------------------------------------
   
   # Restrict the domain of study by cropping the curve
@@ -189,14 +192,17 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
       log_var_max <- results_df$log_var_IC_delta[which(results_df$delta == delta_min)]
     }
   }
-  var_IC.plot <- var_IC.plot + geom_hline(yintercept = log_var_min) +
-    geom_hline(yintercept = log_var_max) +
-    geom_vline(xintercept = log(delta_min) / log(10)) + 
-    geom_vline(xintercept = log(delta_max) / log(10))
   
-  print(var_IC.plot)
+  if(plotting){
+    var_IC.plot <- var_IC.plot + geom_hline(yintercept = log_var_min) +
+      geom_hline(yintercept = log_var_max) +
+      geom_vline(xintercept = log(delta_min) / log(10)) + 
+      geom_vline(xintercept = log(delta_max) / log(10))
+    
+    print(var_IC.plot)
+  }
   
   results_df <- cbind(results_df, in_range = results_df$delta <= delta_max & results_df$delta >= delta_min)
   
-  broken_lines.final_fit <- fit_broken_line(results_df, 2, delta_min, delta_max, gamma, plotting = plotting, var_IC.plot = var_IC.plot)
+  broken_lines.final_fit <- fit_broken_line(results_df, 2, delta_min, delta_max, gamma, plotting = F, var_IC.plot = F)
 }

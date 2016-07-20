@@ -64,5 +64,5 @@ for(dataset_id in test_set.dataset_ids){
 }
 
 cat("Classification error rate:\n
-    -GLM: ", glm.classification_error_rate, "\n",
-    "-SL: ", SL.classification_error_rate, "\n")
+    -GLM: ", glm.classification_error_rate, "\n
+    -SL: ", SL.classification_error_rate, "\n")
