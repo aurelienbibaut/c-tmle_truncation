@@ -1,11 +1,13 @@
-broken_lines.results <- read.csv('broken_lines.results.csv')
+library(SuperLearner)
+
+broken_lines.results <- read.csv('broken_lines.results.new.csv')
 n_init <- nrow(broken_lines.results)
-n_broken_lines <- n_init / 3
+n_datasets <- n_init / 5
 broken_lines.results <- cbind(broken_lines.results,
-                              id = kronecker(1:n_broken_lines, rep(1, 3)))
+                              id = kronecker(1:n_datasets, rep(1, 5)))
 # Filter out incomplete cases
 incomplete_cases.dataset_ids <- unique(broken_lines.results$id[!complete.cases(broken_lines.results)])
-complete_cases.dataset_ids <- which(! (1:n_broken_lines %in% incomplete_cases.dataset_ids))
+complete_cases.dataset_ids <- which(! (1:n_datasets %in% incomplete_cases.dataset_ids))
 broken_lines.results.cc <- subset(broken_lines.results, id %in% complete_cases.dataset_ids)
 n_cc <- nrow(broken_lines.results.cc)
 
@@ -19,7 +21,7 @@ test_set <- subset(broken_lines.results.cc, id %in% test_set.dataset_ids)
 
 # Fit logistic regression model on training set
 glm_fit <- glm(is_best ~ relative_linearity + linearity + relative_segment_squared_length +
-                 avg_log_p_value + nb_points + leftmost, 
+                 avg_log_p_value + nb_points + leftmost + n + n_breakpoints, 
                data = subset(broken_lines.results.cc, id %in% training_set.dataset_ids),
                family = binomial)
 
@@ -34,13 +36,15 @@ super_learner.result <- SuperLearner(Y = training_set$is_best, X = training_set[
                                                                                     'relative_segment_squared_length',
                                                                                     'avg_log_p_value',
                                                                                     'nb_points',
-                                                                                    'leftmost')],
+                                                                                    'leftmost', 
+                                                                                    'n', 'n_breakpoints')],
                                      newX = test_set[, c('relative_linearity',
                                                          'linearity',
                                                          'relative_segment_squared_length',
                                                          'avg_log_p_value',
                                                          'nb_points',
-                                                         'leftmost')],
+                                                         'leftmost',
+                                                         'n', 'n_breakpoints')],
                                      family = binomial(), SL.library = SL.library)
 
 
@@ -49,7 +53,7 @@ SL.classification_error_rate <- 0
 truth_and_predictions.matrix <- vector()
 for(dataset_id in test_set.dataset_ids){
   cat('Dataset id ', dataset_id, ', rows\' numbers:\n')
-  row_numbers <- (dataset_id - 1) * 3 + c(1, 2, 3)
+  row_numbers <- (dataset_id - 1) * 5 + 1:5
   print(row_numbers)
   # print(broken_lines.results.cc$is_best[row_numbers])
   true_best <- which(broken_lines.results.cc$is_best[as.numeric(row.names(broken_lines.results.cc)) == row_numbers] == 1)[1]
