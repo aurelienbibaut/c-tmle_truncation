@@ -1,4 +1,5 @@
 source('./broken_line_find_gamma-functions-mpi.R')
+library(R.utils)
 
 data_generating_distributions.parameters <- list()
 # Set of parameters 1
@@ -42,8 +43,12 @@ for(job in jobs){
     cat('Results:\n')
     print(current_broken_line.result)
     if(!file.exists("broken_lines.results.csv")){
+      current_broken_line.result <- cbind(dataset_id = 1, current_broken_line.result)
       write.table(current_broken_line.result, file = "broken_lines.results.csv", append = T, row.names = F, col.names = T,  sep = ",")
     }else{
+      n_lines <- countLines("broken_lines.results.csv")[1]
+      last_dataset_id <- read.csv("broken_lines.results.csv", skip = n_lines - 2)[1]
+      current_broken_line.result <- cbind(dataset_id = last_dataset_id + 1, current_broken_line.result)
       write.table(current_broken_line.result, file = "broken_lines.results.csv", append = T, row.names = F, col.names = F,  sep = ",")
     }
     broken_line.results <- rbind(broken_line.results, current_broken_line.result)

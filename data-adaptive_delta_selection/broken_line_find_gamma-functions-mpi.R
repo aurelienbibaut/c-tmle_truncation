@@ -207,9 +207,9 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
                                 n = n, n_breakpoints = 2)
   
   broken_lines.results <- rbind(broken_lines.1bp_fit, broken_lines.2bp_fit)
-  broken_lines.results$is_best <- rep(0, 5)
+  broken_lines.results$is_best <- rep(0, nrow(broken_lines.results))
   broken_lines.results$is_best[which.min(broken_lines.results$loss)] <- 1
-  broken_lines.results$true_gamma <- rep(gamma, 5)
+  broken_lines.results$true_gamma <- rep(gamma, nrow(broken_lines.results))
   
   broken_lines.results
 }
