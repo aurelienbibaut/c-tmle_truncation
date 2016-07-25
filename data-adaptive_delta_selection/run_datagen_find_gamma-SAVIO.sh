@@ -30,6 +30,10 @@ Rscript -e 'install.packages("boot_1.3-18.tar.gz", repos = NULL, type = "source"
 
 Rscript -e 'install.packages("doMPI_0.2.1.tar.gz", repos = NULL, type = "source", lib = "~/Rlibs", INSTALL_opts = c("--no-lock"))'
 
+Rscript -e 'install.packages("R.oo_1.20.0.tar.gz", repos = NULL, type = "source", lib = "~/Rlibs", INSTALL_opts = c("--no-lock"))'
+
+Rscript -e 'install.packages("R.methodsS3_1.7.1.tar.gz", repos = NULL, type = "source", lib = "~/Rlibs", INSTALL_opts = c("--no-lock"))'
+
 Rscript -e 'install.packages("R.utils_2.3.0.tar.gz", repos = NULL, type = "source", lib = "~/Rlibs", INSTALL_opts = c("--no-lock"))'
 
 mpirun R CMD BATCH --no-save broken_line_find_gamma-generate_datasets-mpi.R broken_line_find_gamma-generate_datasets-mpi.out

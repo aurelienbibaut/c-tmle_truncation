@@ -99,7 +99,7 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
     print(var_IC.plot_with_broken_segments)
   }
   
-  cat('With ', nb_breakpoints, ', RSS = ', RSS, ', and BIC = ', BIC, '\n')
+  #cat('With ', nb_breakpoints, ', RSS = ', RSS, ', and BIC = ', BIC, '\n')
   list(var_IC.plot = var_IC.plot_with_broken_segments, 
        RSS = RSS, BIC = BIC,
        broken_line_points_df = broken_line_points_df)
@@ -107,7 +107,7 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
 
 generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, beta1, beta2, n, gamma, plotting = F){
   # Set up cluster
-  cl <- startMPIcluster(72)
+  cl <- startMPIcluster()
   registerDoMPI(cl)
   
   # Set up tasks
@@ -117,7 +117,7 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
   observed_data <- generate_data(type, lambda, alpha0, beta0, beta1, beta2, n)
   
   results <- foreach(delta=deltas, .combine = rbind,
-                     .packages = c('speedglm', 'boot'), .verbose = T,
+                     .packages = c('speedglm', 'boot'), .verbose = F,
                      .export = c('beta', 'gamma', 'kappa', 'n',
                                  'lambda', 'alpha0', 'beta0', 'beta1', 'beta2',
                                  'TMLE_EY1_speedglm', 'expit', 'logit', 'g_to_g_delta',
