@@ -11,7 +11,8 @@ data_generating_distributions.parameters[[2]] <- list(lambda = 2, alpha0 = 4, be
 # Set of parameters 3
 data_generating_distributions.parameters[[3]] <- list(lambda = 2, alpha0 = 4, beta2 =-3, beta0 = -1, beta1 = 1,
                                                       beta = 7/8, gamma = 5/16)
-ns <- floor(c(10^3.5, 10^4, 10^4.5))
+#ns <- floor(c(10^3.5, 10^4, 10^4.5))
+ns <- 1e3
 
 # Define jobs
 nb_repeats <- 20
@@ -36,7 +37,6 @@ for(job in jobs){
                                                                         parameters_grid[job, ]$n, 
                                                                         current_data_generating_distributions.parameters$gamma,
                                                                         plotting = F))
-  try(closeCluster(cl)())
   if(!is.null(current_broken_line.result)){
     cat('For job')
     print(parameters_grid[job, ])
