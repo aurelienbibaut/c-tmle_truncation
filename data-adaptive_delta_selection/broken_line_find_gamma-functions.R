@@ -107,10 +107,14 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
        broken_line_points_df = broken_line_points_df)
 }
 
-generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, beta1, beta2, n, gamma, plotting = F){
+generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, beta1, beta2, n, gamma, plotting = F, verbose = F){
   # Set up cluster
-  cat(detectCores(), 'cores detected\n')
-  cl <- makeCluster(getOption("cl.cores", detectCores()), outfile = '')
+  if(verbose){
+    cat(detectCores(), 'cores detected\n')
+    cl <- makeCluster(getOption("cl.cores", detectCores()), outfile = '')
+  }else{
+    cl <- makeCluster(getOption("cl.cores", detectCores()))
+  }
   registerDoParallel(cl)
   
   # Set up tasks
@@ -120,7 +124,7 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
   observed_data <- generate_data(type, lambda, alpha0, beta0, beta1, beta2, n)
   
   results <- foreach(delta=deltas, .combine = rbind,
-                     .packages = c('speedglm', 'boot'), .verbose = T,
+                     .packages = c('speedglm', 'boot'), .verbose = verbose,
                      .export = c('beta', 'gamma', 'kappa', 'n',
                                  'lambda', 'alpha0', 'beta0', 'beta1', 'beta2',
                                  'TMLE_EY1_speedglm', 'expit', 'logit', 'g_to_g_delta',
@@ -205,8 +209,9 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
                                 n = n, n_breakpoints = 2)
   
   broken_lines.results <- rbind(broken_lines.1bp_fit, broken_lines.2bp_fit)
-  broken_lines.results$is_best <- rep(0, 5)
+  broken_lines.results$is_best <- rep(0, nrow(broken_lines.results))
   broken_lines.results$is_best[which.min(broken_lines.results$loss)] <- 1
+  broken_lines.results$true_gamma <- rep(gamma, nrow(broken_lines.results))
   
   broken_lines.results
 }
