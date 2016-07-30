@@ -167,7 +167,7 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
   
   results_df <- cbind(results_df, in_range = results_df$delta <= delta_max & results_df$delta >= delta_min)
   
-  broken_lines.1bp_fit <- cbind(fit_broken_line(results_df, 1, delta_min, delta_max, gamma, 
+  broken_lines.1bp_fit <- cbind(fit_broken_linene(results_df, 1, delta_min, delta_max, gamma, 
                                                 plotting = plotting, var_IC.plot = var_IC.plot)$broken_line_points_df,
                                 n = n, n_breakpoints = 1)
   broken_lines.2bp_fit <- cbind(fit_broken_line(results_df, 2, delta_min, delta_max, gamma, 
