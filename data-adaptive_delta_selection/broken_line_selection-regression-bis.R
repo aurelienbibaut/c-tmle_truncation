@@ -1,6 +1,6 @@
 # library(SuperLearner)
 library(dummies)
-# library(h2o)
+library(h2o)
 broken_lines.results <- read.csv('broken_lines.results.csv')[, -1]
 
 n_init <- nrow(broken_lines.results)
@@ -24,39 +24,60 @@ for(current_dataset_id in broken_lines.results.cc$dataset_id){
   ordering_2bp <- paste(current_2bp_broken_line$leftmost[order(-current_2bp_broken_line$slope)], collapse = '')
   broken_lines.results.cc[row.names(current_2bp_broken_line), 'slopes.ordering'] <- ordering_2bp
 }
-broken_lines.results.cc <- dummy.data.frame(broken_lines.results.cc, names = "slopes.ordering")
+# broken_lines.results.cc <- dummy.data.frame(broken_lines.results.cc, names = "slopes.ordering")
 
+
+broken_lines.results.cc <- cbind(segment_id = kronecker(rep(1, nrow(broken_lines.results.cc) / 5), 1:5),
+                                 broken_lines.results.cc)
+
+# predictors <- c('relative_linearity',
+#                 'linearity',
+#                 'relative_segment_squared_length',
+#                 'nb_points',
+#                 'leftmost', 
+#                 'n', 'n_breakpoints',
+#                 colnames(broken_lines.results.cc)[which.dummy(broken_lines.results.cc)])
 predictors <- c('relative_linearity',
                 'linearity',
                 'relative_segment_squared_length',
                 'nb_points',
                 'leftmost', 
                 'n', 'n_breakpoints',
-                colnames(broken_lines.results.cc)[which.dummy(broken_lines.results.cc)])
+                'slopes.ordering')
 
 broken_lines.results.cc.colnames <- colnames(broken_lines.results.cc)
 broken_lines.results.cc <- as.data.frame(sapply(1:ncol(broken_lines.results.cc), function(j) as.numeric(broken_lines.results.cc[, j])))
 colnames(broken_lines.results.cc) <- broken_lines.results.cc.colnames
 
-# Define predictors
-# predictors <- c('relative_linearity',
-#   'linearity',
-#   'relative_segment_squared_length',
-#   'avg_log_p_value',
-#   'nb_points',
-#   'leftmost', 
-#   'n', 'n_breakpoints',
-#   colnames(broken_lines.results.cc)[which.dummy(broken_lines.results.cc)])
 
+wide_dataset <- reshape(data = broken_lines.results.cc[, c('dataset_id', 'segment_id', predictors) ],
+                        v.names = setdiff(predictors, 'n'), idvar = 'dataset_id', direction = 'wide',
+                        timevar = 'segment_id')
+
+# Convert slopes orderings into factors
+for(j in 1:5){
+  colname <- paste('slopes.ordering', j, sep = '.')
+  wide_dataset[, colname] <- as.factor(wide_dataset[, colname])
+}
+
+# Add best segment feature
+wide_dataset <- cbind(wide_dataset, best_segment = NA)
+for(i in 1:nrow(wide_dataset)){
+  current_dataset_id <- wide_dataset[i, 'dataset_id']
+  wide_dataset[i, 'best_segment'] <- subset(broken_lines.results.cc, 
+                                            dataset_id == current_dataset_id & is_best == 1, 
+                                            select = segment_id)[[1]]
+}
+wide_dataset$best_segment <- as.factor(wide_dataset$best_segment)
 
 
 # Define test set and training set
-training_set.dataset_ids <- sample(complete_cases.dataset_ids, floor(length(complete_cases.dataset_ids) * 4 / 5), F)
-in_test_set.dataset_ids <- ! (complete_cases.dataset_ids %in% training_set.dataset_ids)
-test_set.dataset_ids <- complete_cases.dataset_ids[in_test_set.dataset_ids]
-
-training_set <- subset(broken_lines.results.cc, dataset_id %in% training_set.dataset_ids)
-test_set <- subset(broken_lines.results.cc, dataset_id %in% test_set.dataset_ids)
+# training_set.dataset_ids <- sample(complete_cases.dataset_ids, floor(length(complete_cases.dataset_ids) * 4 / 5), F)
+# in_test_set.dataset_ids <- ! (complete_cases.dataset_ids %in% training_set.dataset_ids)
+# test_set.dataset_ids <- complete_cases.dataset_ids[in_test_set.dataset_ids]
+# 
+# training_set <- subset(broken_lines.results.cc, dataset_id %in% training_set.dataset_ids)
+# test_set <- subset(broken_lines.results.cc, dataset_id %in% test_set.dataset_ids)
 
 # # GLM
 # glm_formula <- as.formula(paste(c('is_best ~', paste(predictors, collapse = '+')), collapse = ''))
@@ -75,8 +96,10 @@ test_set <- subset(broken_lines.results.cc, dataset_id %in% test_set.dataset_ids
 #                                      newX = test_set[, predictors],
 #                                      family = binomial(), SL.library = SL.library)
 localH2O <- h2o.init()
-training_set.h2o <- as.h2o(training_set)
-h2o.fit <- h2o.deeplearning(x = predictors, y = 'is_best', training_frame = training_set.h2o)
+# training_set.h2o <- as.h2o(training_set)
+wide_dataset.h2o <- as.h2o(wide_dataset)
+# h2o.fit <- h2o.deeplearning(x = predictors, y = 'is_best', training_frame = training_set.h2o)
+h2o.fit <- h2o.deeplearning(x = setdiff(colnames(wide_dataset), c('best_segment', 'dataset_id')), y = 'best_segment', training_frame = wide_dataset.h2o)
 
 
 #Subset of test set dataset ids, for which n > n0
