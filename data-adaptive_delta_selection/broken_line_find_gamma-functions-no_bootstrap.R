@@ -148,19 +148,20 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
                       log_var_IC_delta = log(results_df$var_IC) / log(10))
   
   # Make plot of finite differences
-  var_IC.plot <- ggplot(results_df, 
-                        aes(x = log_delta, 
-                            y = log_var_IC_delta)) + 
-    geom_line() + geom_point() +
-    geom_abline(intercept = -0.5, slope = -2 * gamma, linetype = 'dotted') +
-    geom_abline(intercept = -1, slope = -2 * gamma, linetype = 'dotted') +
-    geom_abline(intercept = -1.5, slope = -2 * gamma, linetype = 'dotted') +
-    xlab(expression(log[10](delta))) + 
-    ylab(expression(log[10](sigma[n]^2*(delta)))) +
-    ggtitle(substitute(group("(", list(Lambda, alpha[0], beta[0], beta[1], beta[2], 'n'),")") ==
-                         group("(",list(lambda, alpha0, beta0, beta1, beta2, n),")"),
-                       list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, beta1 = beta1, beta2 = beta2, n = n)))
-  
+  if(plotting){
+    var_IC.plot <- ggplot(results_df, 
+                          aes(x = log_delta, 
+                              y = log_var_IC_delta)) + 
+      geom_line() + geom_point() +
+      geom_abline(intercept = -0.5, slope = -2 * gamma, linetype = 'dotted') +
+      geom_abline(intercept = -1, slope = -2 * gamma, linetype = 'dotted') +
+      geom_abline(intercept = -1.5, slope = -2 * gamma, linetype = 'dotted') +
+      xlab(expression(log[10](delta))) + 
+      ylab(expression(log[10](sigma[n]^2*(delta)))) +
+      ggtitle(substitute(group("(", list(Lambda, alpha[0], beta[0], beta[1], beta[2], 'n'),")") ==
+                           group("(",list(lambda, alpha0, beta0, beta1, beta2, n),")"),
+                         list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, beta1 = beta1, beta2 = beta2, n = n)))
+  }
   # Find gamma --------------------------------------------------------------
   
   # Restrict the domain of study by cropping the curve
@@ -182,13 +183,15 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
       log_var_max <- results_df$log_var_IC_delta[which(results_df$delta == delta_min)]
     }
   }
-  var_IC.plot <- var_IC.plot + geom_hline(yintercept = log_var_min) +
-    geom_hline(yintercept = log_var_max) +
-    geom_vline(xintercept = log(delta_min) / log(10)) + 
-    geom_vline(xintercept = log(delta_max) / log(10))
   
-  print(var_IC.plot)
-  
+  if(plotting){
+    var_IC.plot <- var_IC.plot + geom_hline(yintercept = log_var_min) +
+      geom_hline(yintercept = log_var_max) +
+      geom_vline(xintercept = log(delta_min) / log(10)) + 
+      geom_vline(xintercept = log(delta_max) / log(10))
+    
+    print(var_IC.plot)
+  }
   results_df <- cbind(results_df, in_range = results_df$delta <= delta_max & results_df$delta >= delta_min)
   
   broken_lines.1bp_fit <- cbind(fit_broken_line(results_df, 1, delta_min, delta_max, gamma, 

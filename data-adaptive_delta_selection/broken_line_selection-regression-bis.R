@@ -110,3 +110,8 @@ segment_classification.MSE <- mean((abs(predicted_slopes) - true_gamma)^2)
 regression_predictions <- as.vector(h2o.predict(h2o.slope_regression_fit, test_set.h2o))
 slope_regression.MSE <- mean((regression_predictions - true_gamma)^2)
 
+# Checking generalization
+newdatapoint <- generate_data_and_gamma_broken_line('L0_exp', 2, 4, -1, 1, 2, 1e4, 1/4, T, F)
+newdatapoint <- cbind(dataset_id = 1e4, newdatapoint)
+formatted_newdatapoint.h2o <- as.h2o(preprocess_dataset(newdatapoint)$dataset)
+h2o.predict(h2o.slope_regression_fit, formatted_newdatapoint.h2o)
