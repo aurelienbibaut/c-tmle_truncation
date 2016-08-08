@@ -9,6 +9,7 @@ registerDoMPI(cl)
 # Define jobs
 nb_repeats <- 1e4
 jobs <- 1:nb_repeats
+jobs_completed <- vector()
 
 # Sample data-generating distribution's parameters
 sample_datagen_dist.parameters <- function(alpha0_max){
