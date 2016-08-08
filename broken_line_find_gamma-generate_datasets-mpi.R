@@ -2,6 +2,7 @@ source('./broken_line_find_gamma-functions-mpi.R')
 library(R.methodsS3, lib.loc = '~/Rlibs')
 library(R.oo, lib.loc = '~/Rlibs')
 library(R.utils, lib.loc = '~/Rlibs')
+library(Rmpi); library(doMPI)
 
 data_generating_distributions.parameters <- list()
 # Set of parameters 1
@@ -13,14 +14,20 @@ data_generating_distributions.parameters[[2]] <- list(lambda = 2, alpha0 = 4, be
 # Set of parameters 3
 data_generating_distributions.parameters[[3]] <- list(lambda = 2, alpha0 = 4, beta2 =-3, beta0 = -1, beta1 = 1,
                                                       beta = 7/8, gamma = 5/16)
-#ns <- floor(c(10^3.5, 10^4, 10^4.5))
-ns <- floor(c(10^3, 10^3.5))
+ns <- floor(c(10^3.5, 10^4, 10^4.5))
+#ns <- 1e3
 
 # Define jobs
-nb_repeats <- 20
+nb_repeats <- 1e4
 parameters_grid <- expand.grid(distribution_id = 1:length(data_generating_distributions.parameters), n = ns)
 jobs <- sample(kronecker(1:nrow(parameters_grid), rep(1, nb_repeats)))
 jobs_completed <- vector()
+
+# Set up cluster
+cl <- startMPIcluster() 
+registerDoMPI(cl) 
+
+
 
 broken_line.results <- vector()
 for(job in jobs){
@@ -39,11 +46,10 @@ for(job in jobs){
                                                                         parameters_grid[job, ]$n, 
                                                                         current_data_generating_distributions.parameters$gamma,
                                                                         plotting = F))
-  try(closeCluster(cl)())
   if(!is.null(current_broken_line.result)){
     cat('For job')
     print(parameters_grid[job, ])
-    cat('Results:\n')
+    cat('Out of the generate_data_and_gamma_broken_line functions, results:\n')
     print(current_broken_line.result)
     if(!file.exists("broken_lines.results.csv")){
       current_broken_line.result <- cbind(dataset_id = 1, current_broken_line.result)
@@ -63,3 +69,5 @@ for(job in jobs){
     jobs_completed <- c(jobs_completed, job)
   }
 }
+
+closeCluster(cl)

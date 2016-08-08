@@ -3,7 +3,7 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
-library(Rmpi); library(doMPI)
+# library(Rmpi); library(doMPI)
 
 library(speedglm)
 library(boot); library(segmented)
@@ -106,11 +106,7 @@ fit_broken_line <- function(results_df, nb_breakpoints = 2, delta_min, delta_max
 }
 
 generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, beta1, beta2, n, gamma, plotting = F, verbose = F){
-  # Set up cluster
-  cl <- startMPIcluster()
-  registerDoMPI(cl)
-  
-  
+
   # Set up tasks
   deltas <- 10^seq(from = -5, to = -0.8, by = 0.05)
   
@@ -134,7 +130,6 @@ generate_data_and_gamma_broken_line <- function(type, lambda, alpha0, beta0, bet
                        
                        c(delta, var_IC)
                      }
-  closeCluster(cl)
   
   row.names(results) <- NULL
   colnames(results) <- c('delta', 'var_IC')
