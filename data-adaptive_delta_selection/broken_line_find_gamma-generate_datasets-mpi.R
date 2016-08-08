@@ -53,6 +53,22 @@ for(job in jobs){
                                                                         n, 
                                                                         current_data_generating_distributions.parameters$gamma,
                                                                         plotting = F))
+  # Figure out to which file to write
+  if(!outfile_name.defined){
+    file_number <- NULL
+    while(file.exists(paste("broken_lines.results", file_number, ".csv", sep = ''))){
+      if(is.null(file_number)){
+        file_number <- 1
+      }else{
+        file_number <- file_number + 1
+      }
+    }
+    outfile <- paste("broken_lines.results", file_number, ".csv", sep = '')
+    outfile_name.defined <- T
+    cat("We'll write results in ", outfile, "\n")
+  }
+  
+  # Write the results to outfile
   if(!is.null(current_broken_line.result)){
     cat('Results:\n')
     print(current_broken_line.result)
@@ -60,14 +76,14 @@ for(job in jobs){
       current_broken_line.result <- cbind(dataset_id = 1, current_broken_line.result)
       cat("The results file does not exist yet. About to write:\n")
       print(current_broken_line.result)
-      write.table(current_broken_line.result, file = "broken_lines.results.csv", append = T, row.names = F, col.names = T,  sep = ",")
+      write.table(current_broken_line.result, file = outfile, append = T, row.names = F, col.names = T,  sep = ",")
     }else{
       n_lines <- countLines("broken_lines.results.csv")[1]
       last_dataset_id <- read.csv("broken_lines.results.csv", skip = n_lines - 2)[1]
       current_broken_line.result <- cbind(dataset_id = as.numeric(last_dataset_id + 1), current_broken_line.result)
       cat("The results file already exists. About to write:\n")
       print(current_broken_line.result)
-      write.table(current_broken_line.result, file = "broken_lines.results.csv", append = T, row.names = F, col.names = F,  sep = ",")
+      write.table(current_broken_line.result, file = outfile, append = T, row.names = F, col.names = F,  sep = ",")
     }
     broken_line.results <- rbind(broken_line.results, current_broken_line.result)
     
