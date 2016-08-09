@@ -2,6 +2,7 @@ source('./broken_line_find_gamma-functions-mpi.R')
 library(R.utils)
 library(Rmpi); library(doMPI)
 
+
 # Set up cluster
 cl <- startMPIcluster()
 registerDoMPI(cl)
@@ -35,6 +36,8 @@ sample_datagen_dist.parameters <- function(alpha0_max){
        beta2 = beta2, gamma = gamma)
 }
 
+# Repeat: sampling of a data generating distribution, sampling from this latter, and fit broken line
+outfile_name.defined <- FALSE
 broken_line.results <- vector()
 for(job in jobs){
   current_broken_line.result <- NULL
@@ -72,14 +75,14 @@ for(job in jobs){
   if(!is.null(current_broken_line.result)){
     cat('Results:\n')
     print(current_broken_line.result)
-    if(!file.exists("broken_lines.results.csv")){
+    if(!file.exists(outfile)){
       current_broken_line.result <- cbind(dataset_id = 1, current_broken_line.result)
       cat("The results file does not exist yet. About to write:\n")
       print(current_broken_line.result)
       write.table(current_broken_line.result, file = outfile, append = T, row.names = F, col.names = T,  sep = ",")
     }else{
-      n_lines <- countLines("broken_lines.results.csv")[1]
-      last_dataset_id <- read.csv("broken_lines.results.csv", skip = n_lines - 2)[1]
+      n_lines <- countLines(outfile)[1]
+      last_dataset_id <- read.csv(outfile, skip = n_lines - 2)[1]
       current_broken_line.result <- cbind(dataset_id = as.numeric(last_dataset_id + 1), current_broken_line.result)
       cat("The results file already exists. About to write:\n")
       print(current_broken_line.result)
