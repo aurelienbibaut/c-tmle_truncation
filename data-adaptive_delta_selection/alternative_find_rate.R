@@ -135,7 +135,9 @@ find_beta <- function(observed_data, deltas, Delta.delta_rates){
   registerDoParallel(cl)
   
   results <- foreach(i=1:nrow(jobs), .combine = rbind,
-                     .packages = c('speedglm', 'boot'), .verbose = T, .inorder = T) %dopar% {
+                     .packages = c('speedglm', 'boot'), 
+                     .export = c('TMLE_EY1_speedglm', 'expit', 'logit', 'g_to_g_delta', 'finite_difference_for_boot'),
+                                .verbose = T, .inorder = T) %dopar% {
                        
                        delta <- jobs[i, ]$delta; Delta <- n^(-0.25) * delta^jobs[i, ]$Delta.delta_rate
                        
