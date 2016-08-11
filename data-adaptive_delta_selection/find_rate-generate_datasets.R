@@ -1,0 +1,120 @@
+source('./find_gamma-functions.R')
+source('./find_beta-functions-no_bootstrap.R')
+library(R.utils)
+library(ggplot2); library(gridExtra); library(grid)
+library(foreach); library(doParallel)
+
+
+# Sample data-generating distribution's parameters
+sample_datagen_dist.parameters <- function(alpha0_max){
+  # Define the vertices of a polytope of parameters (alpha0, lambda^-2, abs(beta2))
+  # for which the target parameter is weakly identifiable
+  vertices <- t(rbind(c(0, 0, 0),
+                      c(alpha0_max, 0, 0),
+                      c(alpha0_max, alpha0_max, 0),
+                      c(alpha0_max, 0, alpha0_max))) # One column per vertex
+  # Pick uniformly the parameter vector (alpha0, lambda^-1, abs(beta2))
+  # in the polytope defined by the above defined vertices
+  unormalized_weights <- runif(4)
+  weights <- unormalized_weights / sum(unormalized_weights)
+  main_params <- as.vector(vertices %*% weights)
+  alpha0 <- main_params[1]; lambda <- 1 / main_params[2]
+  beta2 <- (1 - 2 * rbinom(1, 1, 0.5)) * main_params[3]
+  
+  beta0 <- runif(1, min = -2, max = 2)
+  beta1 <- runif(1, min = -2, max = 2)
+  gamma <- (alpha0 - 1 / lambda - abs(beta2)) / (2 * alpha0)
+  
+  list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, beta1 = beta1,
+       beta2 = beta2, gamma = gamma)
+}
+
+# Generate beta and gamma datapoint
+generate_datapoint <- function(plotting = T){
+  
+  # Sample a data generating distribution
+  current_data_generating_distributions.parameters <- sample_datagen_dist.parameters(runif(1, min = 2, max = 10))
+  beta <- (current_data_generating_distributions.parameters$alpha0 - 1 / current_data_generating_distributions.parameters$lambda -
+             max(0, current_data_generating_distributions.parameters$beta2)) / current_data_generating_distributions.parameters$alpha0
+  n <- floor(10^runif(1, min = 3, max = 4.8))
+  
+  # Sample a dataset from the above sampled data-generating distribution
+  observed_data <- generate_data("L0_exp", current_data_generating_distributions.parameters$lambda, 
+                                 current_data_generating_distributions.parameters$alpha0, 
+                                 current_data_generating_distributions.parameters$beta0, 
+                                 current_data_generating_distributions.parameters$beta1, 
+                                 current_data_generating_distributions.parameters$beta2, 
+                                 n)
+  
+  # Compute the empirical variances of the IC at different values of the truncation level
+  var_IC_df <- compute_variances(observed_data)
+  var_IC.plot <- plot_log_var_IC(var_IC_df)
+  
+  # Compute finite differences
+  Delta.delta_rates <- c(0.8, 1, 1.1, 1.375, 1.5)
+  fin_diffs_df <- compute_finite_difference(observed_data, Delta.delta_rates, n)
+  
+  # Extract gamma features
+  gamma_features <- NULL
+  cat('About to call extract_gamma_features')
+  try(gamma_features <- extract_gamma_features(var_IC_df, plotting = T, var_IC.plot = var_IC.plot))
+  
+  # Extract bete features
+  cat('About to call beta_features')
+  beta_features <- extract_beta_features(fin_diffs_df, beta, plotting = T)
+  
+  if(!is.null(gamma_features)){
+    return(cbind(gamma_features, beta_features))
+  }else{
+    features <- matrix(NA, nrow = 1, ncol = 76 + 278)
+    features[, 77:(76 + 278)] <- as.matrix(beta_features)
+    return(features)
+  }
+}
+
+# debug(extract_gamma_features)
+# debug(generate_datapoint)
+
+# Set up clustes
+cat(detectCores(), 'cores detected\n')
+cl <- makeCluster(getOption("cl.cores", detectCores()), outfile = '')
+registerDoParallel(cl)
+
+# Generate a bunch of datapoints and save them to a csv file
+# Find out to which file to write
+file_number <- NULL
+while(file.exists(paste("rate_inference.features.results", file_number, ".csv", sep = ''))){
+  if(is.null(file_number)){
+    file_number <- 1
+  }else{
+    file_number <- file_number + 1
+  }
+}
+outfile <- paste("rate_inference.features.results", file_number, ".csv", sep = '')
+outfile_name.defined <- T
+cat("We'll write results in ", outfile, "\n")
+
+rate_inference.features_df <- vector()
+for(i in 1:1e6){
+  iteration.results <- NULL
+  try(iteration.results <- generate_datapoint())
+  
+  # Write the results to outfile
+  if(!is.null(iteration.results)){
+    cat('Results:\n')
+    if(!file.exists(outfile)){
+      iteration.results <- cbind(dataset_id = 1, iteration.results)
+      if(length(rate_inference.features_df) != 0) colnames(iteration.results) <- colnames(rate_inference.features_df)
+      write.table(iteration.results, file = outfile, append = T, row.names = F, col.names = T,  sep = ",")
+    }else{
+      n_lines <- countLines(outfile)[1]
+      last_dataset_id <- read.csv(outfile, skip = n_lines - 2)[1]
+      iteration.results <- cbind(dataset_id = as.numeric(last_dataset_id + 1), iteration.results)
+      if(length(rate_inference.features_df) != 0) colnames(iteration.results) <- colnames(rate_inference.features_df)
+      write.table(iteration.results, file = outfile, append = T, row.names = F, col.names = F,  sep = ",")
+    }
+  }
+  rate_inference.features_df <- rbind(rate_inference.features_df,
+                                      iteration.results)
+}
+stopCluster(cl)

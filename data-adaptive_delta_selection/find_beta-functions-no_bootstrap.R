@@ -3,34 +3,27 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
-library(ggplot2); library(gridExtra); library(grid)
-library(foreach); library(doParallel)
 library(robustbase); library(speedglm)
 library(boot); library(segmented)
 
 # Define finite difference functions
-finite_difference <- function(observed_ta, delta, Delta){
+finite_difference <- function(observed_data, delta, Delta){
   Psi_n_delta_plus_Delta <- TMLE_EY1_speedglm(observed_data, delta + Delta)$Psi_n
   Psi_n_delta <- TMLE_EY1_speedglm(observed_data, delta)$Psi_n
   (Psi_n_delta_plus_Delta - Psi_n_delta) / Delta
 }
 
-
 # Compute finite differences for a different rates
-compute_finite_difference <- function(type, lambda, alpha0, beta0, beta1, beta2, n, Delta.delta_rates){
-  # Simulate data
-  observed_data <- generate_data(type, lambda, alpha0, beta0, beta1, beta2, n)
-  
+compute_finite_difference <- function(observed_data, Delta.delta_rates, n, verbose = F){
   # Set up tasks
   deltas <- 10^seq(from = -5, to = -0.8, by = 0.1)
-  
   jobs <- expand.grid(delta = deltas, Delta.delta_rate = Delta.delta_rates)
   outlier_correction = TRUE
   
   results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      .packages = c('speedglm', 'boot'),
                      .export = c('TMLE_EY1_speedglm', 'expit', 'logit', 'g_to_g_delta', 'finite_difference'),
-                     .verbose = T, .inorder = T) %dopar% {
+                     .verbose = verbose, .inorder = T) %dopar% {
                        
                        delta <- jobs[i, ]$delta; Delta <- n^(-0.25) * delta^jobs[i, ]$Delta.delta_rate
                        
@@ -52,7 +45,6 @@ compute_finite_difference <- function(type, lambda, alpha0, beta0, beta1, beta2,
   results_df
 }
 
-
 # Plot finite differences
 plot_finite_differences <- function(results_df, beta){
   # Make plot of finite differences
@@ -69,13 +61,12 @@ plot_finite_differences <- function(results_df, beta){
     ggtitle(substitute(group("(", list(Lambda, alpha[0], beta[0], beta[1], beta[2]),")") ==
                          group("(",list(lambda, alpha0, beta0, beta1, beta2),")"),
                        list(lambda = lambda, alpha0 = alpha0, beta0 = beta0, beta1 = beta1, beta2 = beta2)))
-  
   fin_diffs.plot
 }
 
 # Fit broken line on a log(fin_diff) against log(delta) plot. One Delta.delta_rate at a time
 # Fit a broken line to the in-range area of the curve
-fit_broken_line <- function(results_df, nb_breakpoints = 2, beta, Delta.delta_rate, plotting = F){
+fit_broken_line_beta <- function(results_df, nb_breakpoints = 2, beta, Delta.delta_rate, plotting = F){
   
   initial_breakpoints <- quantile(results_df$log_delta, (1:nb_breakpoints) / (nb_breakpoints + 1))
   
@@ -162,40 +153,45 @@ lts_regression <- function(results_df, Delta.delta_rate_){
     r.squared = lts_fit$rsquared)
 }
 
-# Try it out
-# Delta.delta_rates <- c(0.8, 1, 1.1, 1.375, 1.5)
-# # Set of parameters 1
-# # lambda <- 2; alpha0 <- 2; beta0 <- -3; beta1 <- 1.5; beta2 <- 1
-# # beta <- 0.25
-# # gamma <- 0.125
-# # kappa <- 1 / (2 * (gamma + 1 - beta))
-# # Set of parameters 2
-# lambda <- 2; alpha0 <- 4; beta0 <- -3; beta1 <- 1.5; beta2 <- 0.5
-# kappa <- 5 / 4
-# beta <- 2 - kappa
-# gamma <- 1 - kappa / 2
-# # Set of parameters 3
-# # lambda <- 2; alpha0 <- 4; beta2 <- -3; beta0 <- -1; beta1 <- 1
-# # beta <- 7/8; gamma <- 5/16
-# # n <- 1e4
-# 
-# fin_diffs.results <- compute_finite_difference("L0_exp", lambda, alpha0, beta0, beta1, beta2, n, Delta.delta_rates)
-# fin_diffs.plot <- plot_finite_differences(subset(fin_diffs.results, fin_diff != 0), beta)
-# print(fin_diffs.plot)
-# # debug(fit_broken_line)
-# # LTS fits
-# LTS_fits <- vector()
-# for(Delta.delta_rate in Delta.delta_rates){
-#   LTS_fits <- rbind(LTS_fits,
-#                     c(lts_regression(results_df, Delta.delta_rate), Delta.delta_rate = Delta.delta_rate))
-# }
-# fin_diffs.plot <- fin_diffs.plot + geom_abline(data = as.data.frame(LTS_fits),
-#                                                aes(intercept = intercept, slope = slope, 
-#                                                    colour = factor(Delta.delta_rate)))
-# 
-# broken_line_fit <- fit_broken_line(results_df = subset(fin_diffs.results, fin_diff !=0 & Delta.delta_rate == 1.1),
-#                 nb_breakpoints = 1, beta, 1.1, T)
-# fin_diffs.plot <- fin_diffs.plot + broken_line_fit$broken_line.plot_layer[[1]] +
-#   broken_line_fit$broken_line.plot_layer[[2]] +
-#   broken_line_fit$broken_line.plot_layer[[3]]
-# print(fin_diffs.plot)
+# Extract beta features
+extract_beta_features <- function(fin_diffs.results, beta, plotting = F){
+  Delta.delta_rates <- c(0.8, 1, 1.1, 1.375, 1.5)
+  
+  fin_diffs.results <- subset(fin_diffs.results, fin_diff != 0)
+  
+  if(plotting){
+    fin_diffs.plot <- plot_finite_differences(fin_diffs.results, beta)
+    print(fin_diffs.plot)
+  }
+  
+  LTS_fits <- vector()
+  for(Delta.delta_rate in Delta.delta_rates){
+    LTS_fits <- rbind(LTS_fits,
+                      c(lts_regression(fin_diffs.results, Delta.delta_rate), Delta.delta_rate = Delta.delta_rate))
+  }
+  
+  if(plotting) fin_diffs.plot <- fin_diffs.plot + geom_abline(data = as.data.frame(LTS_fits),
+                                                              aes(intercept = intercept, slope = slope, 
+                                                                  colour = factor(Delta.delta_rate)))
+  
+  broken_lines.results <-  matrix(NA, nrow = 20, ncol = 16)
+  colnames(broken_lines.results) <- c("x.start", "x.end", "y.start",
+                                      "y.end", "Delta.delta_rate", "RSS", "r_squared", "nb_points", "leftmost",
+                                      "segment.squared_length", "slope", "loss", "is_best", "relative_segment_squared_length",
+                                      "linearity", "relative_linearity")
+  for(nb_breakpoints in 1:5){
+    try(broken_lines.results[sum(0:nb_breakpoints):(sum(0:(nb_breakpoints + 1)) - 1), ] <- 
+          as.matrix(fit_broken_line_beta(results_df = subset(fin_diffs.results, fin_diff !=0 & Delta.delta_rate == 1.1),
+                                         nb_breakpoints = nb_breakpoints, beta, 1.1, T)$broken_line_points_df))
+  }
+  broken_lines.results <- cbind(id = 1, segment_id = 1:nrow(broken_lines.results), broken_lines.results)
+  broken_lines.results.wide <- reshape(as.data.frame(broken_lines.results), v.names = setdiff(colnames(broken_lines.results), 
+                                                                                              c("x.start", "x.end", "y.start", "y.end", "id")), 
+                                       timevar = "segment_id", idvar = "id", direction = "wide", 
+                                       drop = c("x.start", "x.end", "y.start", "y.end"))
+  
+  LTS_fits.wide <- reshape(as.data.frame(cbind(id = 1, LTS_fits)), v.names = c("intercept", "slope", "r.squared"),
+                           timevar = "Delta.delta_rate", idvar = "id", direction = "wide")
+  
+  cbind(broken_lines.results.wide, LTS_fits.wide, true_beta = beta)
+}
