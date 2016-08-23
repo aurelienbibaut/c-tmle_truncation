@@ -3,8 +3,9 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
-library(speedglm)
-library(boot); library(segmented)
+library(speedglm, lib.loc = "/global/home/users/afbibaut/Rlibs")
+library(boot, lib.loc = "/global/home/users/afbibaut/Rlibs")
+library(segmented, lib.loc = "/global/home/users/afbibaut/Rlibs")
 
 # Define inference functions ----------------------------------------------
 
@@ -164,7 +165,7 @@ plot_log_var_IC <-  function(results_df){
 }
 
 # Generate gamma datapoint
-extract_gamma_features <- function(var_IC_df, plotting = F, var_IC.plot = NULL){
+extract_gamma_features <- function(var_IC_df, gamma, plotting = F, var_IC.plot = NULL){
   restrict_study_domain.results <- restrict_study_domain(var_IC_df)
   var_IC_df <- restrict_study_domain.results$var_IC_df
   delta_min <- restrict_study_domain.results$delta_min

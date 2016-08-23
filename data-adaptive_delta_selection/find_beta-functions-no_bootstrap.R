@@ -3,8 +3,8 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
-library(robustbase); library(speedglm)
-library(boot); library(segmented)
+library(robustbase, lib.loc = "~/Rlibs"); library(speedglm, lib.loc = "~/Rlibs")
+library(boot, lib.loc = "~/Rlibs"); library(segmented, lib.loc = "~/Rlibs")
 
 # Define finite difference functions
 finite_difference <- function(observed_data, delta, Delta){
@@ -122,7 +122,7 @@ fit_broken_line_beta <- function(results_df, nb_breakpoints = 2, beta, Delta.del
   broken_line_points_df$linearity <- -log(1 - broken_line_points_df$r_squared) / log(10)
   broken_line_points_df$relative_linearity <- broken_line_points_df$linearity / max(broken_line_points_df$linearity)
   
-  print(broken_line_points_df)
+  #print(broken_line_points_df)
   
   # Create a plotting layer for the broken line
   broken_line.plot_layer <- NULL
@@ -182,7 +182,7 @@ extract_beta_features <- function(fin_diffs.results, beta, plotting = F){
   for(nb_breakpoints in 1:5){
     try(broken_lines.results[sum(0:nb_breakpoints):(sum(0:(nb_breakpoints + 1)) - 1), ] <- 
           as.matrix(fit_broken_line_beta(results_df = subset(fin_diffs.results, fin_diff !=0 & Delta.delta_rate == 1.1),
-                                         nb_breakpoints = nb_breakpoints, beta, 1.1, T)$broken_line_points_df))
+                                         nb_breakpoints = nb_breakpoints, beta, 1.1, plotting = plotting)$broken_line_points_df))
   }
   broken_lines.results <- cbind(id = 1, segment_id = 1:nrow(broken_lines.results), broken_lines.results)
   broken_lines.results.wide <- reshape(as.data.frame(broken_lines.results), v.names = setdiff(colnames(broken_lines.results), 
