@@ -1,4 +1,18 @@
 #source('./install_packages.R')
+# Retrieve the command line arguments
+args <- commandArgs(TRUE)
+print(args)
+if(length(args)==0){
+  print("No arguments supplied.")
+  ##supply default values
+  quit("no", 1)
+}else{
+  for(i in 1:length(args)){
+    eval(parse(text=args[[i]]))
+  }
+}
+cat("Task id: ", task_id, "\n")
+
 source('./find_gamma-functions.R')
 source('./find_beta-functions-no_bootstrap.R')
 library(R.methodsS3, lib.loc = '~/Rlibs')
@@ -102,15 +116,15 @@ registerDoMPI(cl)
 
 # Generate a bunch of datapoints and save them to a csv file
 # Find out to which file to write
-file_number <- NULL
-while(file.exists(paste("rate_inference.features.results", file_number, ".csv", sep = ''))){
-  if(is.null(file_number)){
-    file_number <- 1
-  }else{
-    file_number <- file_number + 1
-  }
-}
-outfile <- paste("rate_inference.features.results", file_number, ".csv", sep = '')
+#file_number <- NULL
+#while(file.exists(paste("rate_inference.features.results", file_number, ".csv", sep = ''))){
+#  if(is.null(file_number)){
+#    file_number <- 1
+#  }else{
+#    file_number <- file_number + 1
+#  }
+#}
+outfile <- paste("rate_inference.features.results", task_id, ".csv", sep = '')
 outfile_name.defined <- T
 cat("We'll write results in ", outfile, "\n")
 
