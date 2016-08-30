@@ -20,14 +20,14 @@ training_set.h2o <- as.h2o(training_set)
 test_set.h2o <- as.h2o(test_set)
 full_dataset.h2o <- as.h2o(features_and_rates.cc)
 
-h2o.slope_regression_fit <- h2o.deeplearning(x = setdiff(colnames(features_and_rates.cc),
-                                                         c('dataset_id', 'id', 'true_rate',
-                                                           colnames(features_and_rates.cc)[grep(pattern = "loss|beta|true_gamma|is_best", colnames(features_and_rates.cc))])),
-                                             y = 'true_rate', training_frame = training_set.h2o)
+h2o.rate_regression_fit <- h2o.deeplearning(x = setdiff(colnames(features_and_rates.cc),
+                                                        c('dataset_id', 'id', 'true_rate',
+                                                          colnames(features_and_rates.cc)[grep(pattern = "loss|beta|true_gamma|is_best", colnames(features_and_rates.cc))])),
+                                            y = 'true_rate', training_frame = training_set.h2o)
 
 # Evaluate performance of the regression fit on the test set
 true_rate <- test_set$true_rate
-regression_predictions <- as.vector(h2o.predict(h2o.slope_regression_fit, test_set.h2o))
+regression_predictions <- as.vector(h2o.predict(h2o.rate_regression_fit, test_set.h2o))
 slope_regression.MSE <- mean((regression_predictions - true_rate)^2)
 
 cat("MSE = ", slope_regression.MSE, "\n")
