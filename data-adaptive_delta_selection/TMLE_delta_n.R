@@ -4,7 +4,7 @@ source('./find_beta-functions-no_bootstrap.R')
 
 library(foreach); library(doParallel)
 library(h2o)
-library(ggplot2)
+library(ggplot2); library(gridExtra)
 
 localH2O <- h2o.init(nthreads = -1)
 
@@ -73,7 +73,7 @@ TMLE_delta_n <- function(observed_data, C0 = 0.05, n0 = 100){
   colnames(features) <- colnames(test_set)[1:355]
   
   # Estimate rate based on deeplearning fit
-  h2o.rate_regression_fit <- h2o.loadModel("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.deeplearning_fit/DeepLearning_model_R_1472544196533_4")
+  h2o.rate_regression_fit <- h2o.loadModel("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.deeplearning_fit/DeepLearning_model_R_1472654567301_6")
   features.h2o <- as.h2o(as.data.frame(features))
   predicted_delta_rate <- as.vector(h2o.predict(h2o.rate_regression_fit, features.h2o))
   
@@ -82,7 +82,7 @@ TMLE_delta_n <- function(observed_data, C0 = 0.05, n0 = 100){
   delta_n <- C0 * (n / n0)^(-predicted_delta_rate)
   
   # Returns TMLE of target parameter with truncation level delta_n
-  list(Psi_n = TMLE_EY1_speedglm(observed_data, delta_n)$Psi_n, delta_n = delta_n)
+  list(Psi_n = TMLE_EY1_speedglm(observed_data, delta_n)$Psi_n, delta_n = delta_n, rate.estimate = predicted_delta_rate)
 }
 
 # debug(TMLE_delta_n)
@@ -137,27 +137,32 @@ simulate_and_estimate_once <-function(){
   baseline_Psi_n.0.05 <- TMLE_EY1_speedglm(observed_data, baseline_delta_n.05)
   optimal_Psi_n.0.05 <- TMLE_EY1_speedglm(observed_data, optimal_delta_n.05)
   
-  TMLE_delta_n.result <- TMLE_delta_n(observed_data)
+  TMLE_delta_n.result.0.01 <- TMLE_delta_n(observed_data, C0 = 0.01)
+  TMLE_delta_n.result.0.05 <- TMLE_delta_n(observed_data, C0 = 0.05)
   
   cat('n = ', n, ', EY1 = ', EY1, '\n',
       'baseline delta_n 0.01 = ', baseline_delta_n.01, ' TMLE at baseline delta_n 0.01 = ', baseline_Psi_n.0.01$Psi_n, '\n',
       'baseline delta_n 0.05 = ', baseline_delta_n.05, ' TMLE at baseline delta_n 0.05= ', baseline_Psi_n.0.05$Psi_n, '\n',
-      'delta_n = ', TMLE_delta_n.result$delta_n, ', TMLE at delta_n = ',  TMLE_delta_n.result$Psi_n, '\n',
+      'delta_n.0.01 = ', TMLE_delta_n.result.0.01$delta_n, ', TMLE at delta_n.0.01 = ',  TMLE_delta_n.result.0.01$Psi_n, '\n',
+      'delta_n.0.05 = ', TMLE_delta_n.result.0.05$delta_n, ', TMLE at delta_n.0.05 = ',  TMLE_delta_n.result.0.05$Psi_n, '\n',
       'loss baseline 0.01', (baseline_Psi_n.0.01$Psi_n - EY1)^2,
       ', loss baseline 0.05', (baseline_Psi_n.0.05$Psi_n - EY1)^2,
-      ', loss data adaptive selection', (TMLE_delta_n.result$Psi_n - EY1)^2, '\n')
+      ', loss data adaptive selection', (TMLE_delta_n.result.0.01$Psi_n - EY1)^2, '\n')
   
-  rbind(c(EY1 = EY1, n = n, estimator = 'baseline0.01', delta = baseline_delta_n.01, Psi_n = baseline_Psi_n.0.01$Psi_n),
-        c(EY1 = EY1, n = n, estimator = 'baseline0.05', delta = baseline_delta_n.05, Psi_n = baseline_Psi_n.0.05$Psi_n),
-        c(EY1 = EY1, n = n, estimator = 'optimal0.01', delta = optimal_delta_n.01, Psi_n = optimal_Psi_n.0.01$Psi_n),
-        c(EY1 = EY1, n = n, estimator = 'optimal0.05', delta = optimal_delta_n.05, Psi_n = optimal_Psi_n.0.05$Psi_n),
-        c(EY1 = EY1, n = n, estimator = 'data_adaptive', delta = TMLE_delta_n.result$delta_n, Psi_n = TMLE_delta_n.result$Psi_n))
+  list(estimates = rbind(c(EY1 = EY1, n = n, estimator = 'baseline0.01', delta = baseline_delta_n.01, Psi_n = baseline_Psi_n.0.01$Psi_n),
+                         c(EY1 = EY1, n = n, estimator = 'baseline0.05', delta = baseline_delta_n.05, Psi_n = baseline_Psi_n.0.05$Psi_n),
+                         c(EY1 = EY1, n = n, estimator = 'optimal0.01', delta = optimal_delta_n.01, Psi_n = optimal_Psi_n.0.01$Psi_n),
+                         c(EY1 = EY1, n = n, estimator = 'optimal0.05', delta = optimal_delta_n.05, Psi_n = optimal_Psi_n.0.05$Psi_n),
+                         c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.01', delta = TMLE_delta_n.result.0.01$delta_n, Psi_n = TMLE_delta_n.result.0.01$Psi_n),
+                         c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.05', delta = TMLE_delta_n.result.0.05$delta_n, Psi_n = TMLE_delta_n.result.0.05$Psi_n)),
+       rate.estimate = TMLE_delta_n.result.0.01$rate.estimate,
+       true_rate = optimal_rate, n = n)
 }
 
 # Repeat the dataset simulation and estimation process a bunch of times
 
-plot_MSEs <- function(results){
-  results_df <- transform(as.data.frame(results),
+plot_MSEs <- function(results.estimates, results.rates){
+  results_df <- transform(as.data.frame(results.estimates),
                           EY1 = as.numeric(as.character(EY1)),
                           n = as.numeric(as.character(n)),
                           delta = as.numeric(as.character(delta)),
@@ -177,17 +182,26 @@ plot_MSEs <- function(results){
   MSEs_df <- transform(MSEs_df, n = as.numeric(as.character(n)),
                        MSE = as.numeric(as.character(MSE)))
   
-  print(ggplot(MSEs_df, aes(x = n, y = MSE, colour = estimator)) + geom_line() + geom_point())
+  MSE_plot <- ggplot(MSEs_df, aes(x = n, y = MSE, colour = estimator)) + geom_line() + geom_point()
+  rates_plot <- qplot(results.rates[,3], geom="histogram") + geom_vline(xintercept = results.rates[1, 2])
+  grid.arrange(MSE_plot, rates_plot, nrow = 2, ncol = 1)
 }
 
-results <- vector()
+results.estimates <- vector()
+results.rates <- vector()
+
 ns <- c(1e3, 5e3, 1e4, 2e4, 5e4)
 # Repeat the dataset simulation and estimation process a bunch of times
 for(i in 1:1e4){
   cat('Iteration ', i, '\n')
-  try(results <- rbind(results,
-                       simulate_and_estimate_once()))
-  if((i %% 5) == 0) plot_MSEs(results)
+  try.result <- try(iteration.result <- simulate_and_estimate_once())
+  if(class(try.result) != "try-error"){
+    results.estimates <- rbind(results.estimates,
+                               iteration.result$estimates)
+    results.rates <- rbind(results.rates,
+                           c(n = iteration.result$n, true_rate = iteration.result$true_rate, estimated_rate = iteration.result$rate.estimate))
+    if((i %% 5) == 0) plot_MSEs(results.estimates, results.rates)
+  }
 }
-stopCluster(cl)
 
+stopCluster(cl)
