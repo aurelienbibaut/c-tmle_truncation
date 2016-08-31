@@ -3,9 +3,15 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
-library(speedglm, lib.loc = "/global/home/users/afbibaut/Rlibs")
-library(boot, lib.loc = "/global/home/users/afbibaut/Rlibs")
-library(segmented, lib.loc = "/global/home/users/afbibaut/Rlibs")
+if(running_environment == 'AWS'){
+  library(speedglm)
+  library(boot)
+  library(segmented)
+}else{
+  library(speedglm, lib.loc = "/global/home/users/afbibaut/Rlibs")
+  library(boot, lib.loc = "/global/home/users/afbibaut/Rlibs")
+  library(segmented, lib.loc = "/global/home/users/afbibaut/Rlibs")
+}
 
 # Define inference functions ----------------------------------------------
 

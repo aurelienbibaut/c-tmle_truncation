@@ -3,8 +3,13 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
-library(robustbase, lib.loc = "~/Rlibs"); library(speedglm, lib.loc = "~/Rlibs")
-library(boot, lib.loc = "~/Rlibs"); library(segmented, lib.loc = "~/Rlibs")
+if(running_environment == 'AWS'){
+  library(robustbase); library(speedglm)
+  library(boot); library(segmented)
+}else{
+  library(robustbase, lib.loc = "~/Rlibs"); library(speedglm, lib.loc = "~/Rlibs")
+  library(boot, lib.loc = "~/Rlibs"); library(segmented, lib.loc = "~/Rlibs")
+}
 
 # Define finite difference functions
 finite_difference <- function(observed_data, delta, Delta){

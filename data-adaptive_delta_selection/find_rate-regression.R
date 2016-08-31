@@ -20,6 +20,7 @@ training_set.h2o <- as.h2o(training_set)
 test_set.h2o <- as.h2o(test_set)
 full_dataset.h2o <- as.h2o(features_and_rates.cc)
 
+# Train neural network on training set
 h2o.rate_regression_fit <- h2o.deeplearning(x = setdiff(colnames(features_and_rates.cc),
                                                         c('dataset_id', 'id', 'true_rate',
                                                           colnames(features_and_rates.cc)[grep(pattern = "loss|beta|true_gamma|is_best", colnames(features_and_rates.cc))])),
@@ -32,8 +33,10 @@ slope_regression.MSE <- mean((regression_predictions - true_rate)^2)
 
 cat("MSE = ", slope_regression.MSE, "\n")
 
-# Checking generalization
-# newdatapoint <- generate_data_and_gamma_broken_line('L0_exp', 2, 4, -1, 1, 2, 1e4, 1/4, T, F)
-# newdatapoint <- cbind(dataset_id = 1e4, newdatapoint)
-# formatted_newdatapoint.h2o <- as.h2o(preprocess_dataset(newdatapoint)$dataset)
-# h2o.predict(h2o.slope_regression_fit, formatted_newdatapoint.h2o)
+# Train neural network on full data
+cat('Now training the neural net on the full dataset')
+h2o.rate_regression_fit.full_data <- h2o.deeplearning(x = setdiff(colnames(features_and_rates.cc),
+                                                                  c('dataset_id', 'id', 'true_rate',
+                                                                    colnames(features_and_rates.cc)[grep(pattern = "loss|beta|true_gamma|is_best", colnames(features_and_rates.cc))])),
+                                                      y = 'true_rate', training_frame = full_dataset.h2o)
+path <- h2o.saveModel(h2o.rate_regression_fit.full_data, path = './rate_regression.deeplearning_fit', force = TRUE)
