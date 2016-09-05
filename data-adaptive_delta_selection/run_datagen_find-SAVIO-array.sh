@@ -11,7 +11,7 @@
 # SBATCH --ntasks=192
 #
 # Wall clock limit:
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 #SBATCH -N 2
 #SBATCH --array=1-4
 # Mail type:
