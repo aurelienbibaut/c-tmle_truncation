@@ -3,7 +3,7 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 source('../generate_data.R')
 source('../TMLE_extrapolation_functions.R')
 
-if(running_environment == 'AWS'){
+if(running_environment != 'SAVIO2'){
   library(robustbase); library(speedglm)
   library(boot); library(segmented)
 }else{

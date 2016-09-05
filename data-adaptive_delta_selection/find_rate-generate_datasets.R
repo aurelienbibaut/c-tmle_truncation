@@ -13,9 +13,9 @@ if(running_environment == 'SAVIO2'){
       eval(parse(text=args[[i]]))
     }
   }
+}else{
+  task_id <- 1
 }
-
-task_id <- 1
 cat("Task id: ", task_id, "\n")
 
 source('./find_gamma-functions.R')
