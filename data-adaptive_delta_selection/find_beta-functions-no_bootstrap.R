@@ -23,7 +23,6 @@ compute_finite_difference <- function(observed_data, Delta.delta_rates, n, verbo
   # Set up tasks
   deltas <- 10^seq(from = -5, to = -0.8, by = 0.1)
   jobs <- expand.grid(delta = deltas, Delta.delta_rate = Delta.delta_rates)
-  outlier_correction = TRUE
   
   results <- foreach(i=1:nrow(jobs), .combine = rbind,
                      .packages = c('speedglm', 'boot'),
@@ -90,11 +89,11 @@ fit_broken_line_beta <- function(results_df, nb_breakpoints = 2, beta, Delta.del
                           as.vector(segmented.out$psi[, 2]), 
                           max(results_df$log_delta))
   
-  broken_line_points_df <- matrix(0, ncol = 14, nrow = length(fitted_breakpoints) - 1)
+  broken_line_points_df <- matrix(0, ncol = 15, nrow = length(fitted_breakpoints) - 1)
   colnames(broken_line_points_df) <- c('x.start', 'x.end', 'y.start', 'y.end', 'Delta.delta_rate',
                                        'RSS', 'r_squared',
                                        'nb_points', 'leftmost', 'segment.squared_length',
-                                       'slope', 'loss', 'is_best')
+                                       'beta.slope', 'beta.intercept', 'exp.beta.intercept', 'loss', 'is_best')
   for(i in 1:(length(fitted_breakpoints) - 1)){
     broken_line_points_df[i, 'x.start'] <- fitted_breakpoints[i]
     broken_line_points_df[i, 'x.end'] <- fitted_breakpoints[i + 1]
@@ -110,13 +109,14 @@ fit_broken_line_beta <- function(results_df, nb_breakpoints = 2, beta, Delta.del
     broken_line_points_df[i, 'leftmost'] <- i
     broken_line_points_df[i, 'beta.slope'] <- broken_line_df$slope[i]
     broken_line_points_df[i, 'beta.intercept'] <- broken_line_df$intercept[i]
+    broken_line_points_df[i, 'exp.beta.intercept'] <- exp(broken_line_df$intercept[i])
   }
   broken_line_points_df <- as.data.frame(broken_line_points_df)
   
   RSS <- sum(broken_line_points_df$RSS)
   
   # Figure out which segment is best
-  broken_line_points_df$loss <- sapply(broken_line_points_df$slope, 
+  broken_line_points_df$loss <- sapply(broken_line_points_df$beta.slope, 
                                        function(x) (abs(x) - 2 * beta)^2 + 1e6 * as.numeric(x < -1 | x > 0))
   
   # Score the segments
@@ -155,7 +155,9 @@ fit_broken_line_beta <- function(results_df, nb_breakpoints = 2, beta, Delta.del
 lts_regression <- function(results_df, Delta.delta_rate_){
   regression_df <- subset(results_df, fin_diff !=0 & Delta.delta_rate == Delta.delta_rate_)
   lts_fit <- ltsReg(regression_df$log_delta, regression_df$log_fin_diff)
-  c(beta.lts.intercept = as.numeric(lts_fit$coefficients[1]), beta.lts.slope =as.numeric(lts_fit$coefficients[2]), 
+  c(beta.lts.intercept = as.numeric(lts_fit$coefficients[1]),
+    exp.beta.lts.intercept = exp(as.numeric(lts_fit$coefficients[1])),
+    beta.lts.slope =as.numeric(lts_fit$coefficients[2]), 
     r.squared = lts_fit$rsquared)
 }
 
@@ -180,10 +182,11 @@ extract_beta_features <- function(fin_diffs.results, beta, plotting = F){
                                                               aes(intercept = intercept, slope = slope, 
                                                                   colour = factor(Delta.delta_rate)))
   
-  broken_lines.results <-  matrix(NA, nrow = 20, ncol = 16)
+  broken_lines.results <-  matrix(NA, nrow = 20, ncol = 18)
   colnames(broken_lines.results) <- c("x.start", "x.end", "y.start",
                                       "y.end", "Delta.delta_rate", "RSS", "r_squared", "nb_points", "leftmost",
-                                      "segment.squared_length", "slope", "loss", "is_best", "relative_segment_squared_length",
+                                      "segment.squared_length", "beta.slope", "beta.intercept", "exp.beta.intercept", "loss", 
+                                      "is_best", "relative_segment_squared_length",
                                       "linearity", "relative_linearity")
   for(nb_breakpoints in 1:5){
     try(broken_lines.results[sum(0:nb_breakpoints):(sum(0:(nb_breakpoints + 1)) - 1), ] <- 
@@ -196,7 +199,10 @@ extract_beta_features <- function(fin_diffs.results, beta, plotting = F){
                                        timevar = "segment_id", idvar = "id", direction = "wide", 
                                        drop = c("x.start", "x.end", "y.start", "y.end"))
   
-  LTS_fits.wide <- reshape(as.data.frame(cbind(id = 1, LTS_fits)), v.names = c("intercept", "slope", "r.squared"),
+  LTS_fits.wide <- reshape(as.data.frame(cbind(id = 1, LTS_fits)), v.names = c("beta.lts.slope", 
+                                                                               "beta.lts.intercept", 
+                                                                               "exp.beta.lts.intercept", 
+                                                                               "r.squared"),
                            timevar = "Delta.delta_rate", idvar = "id", direction = "wide")
   
   cbind(broken_lines.results.wide, LTS_fits.wide, true_beta = beta)

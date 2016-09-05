@@ -45,11 +45,13 @@ fit_broken_line_gamma <- function(results_df, nb_breakpoints = 2, delta_min, del
   fitted_breakpoints <- c(log(delta_min) / log(10), 
                           as.vector(segmented.out$psi[, 2]), 
                           log(delta_max) / log(10))
-  broken_line_points_df <- matrix(0, ncol = 13, nrow = length(fitted_breakpoints) - 1)
+  broken_line_points_df <- matrix(0, ncol = 14, nrow = length(fitted_breakpoints) - 1)
   colnames(broken_line_points_df) <- c('x.start', 'x.end', 'y.start', 'y.end',
                                        'RSS', 'r_squared',
                                        'nb_points', 'leftmost', 'segment.squared_length',
-                                       'slope', 'loss', 'is_best')
+                                       'gamma.slope', 'gamma.intercept',
+                                       'exp.gamma.intercept',
+                                       'loss', 'is_best')
   for(i in 1:(length(fitted_breakpoints) - 1)){
     broken_line_points_df[i, 'x.start'] <- fitted_breakpoints[i]
     broken_line_points_df[i, 'x.end'] <- fitted_breakpoints[i + 1]
@@ -64,6 +66,7 @@ fit_broken_line_gamma <- function(results_df, nb_breakpoints = 2, delta_min, del
     broken_line_points_df[i, 'leftmost'] <- i
     broken_line_points_df[i, 'gamma.slope'] <- broken_line_df$slope[i]
     broken_line_points_df[i, 'gamma.intercept'] <- broken_line_df$intercept[i]
+    broken_line_points_df[i, 'exp.gamma.intercept'] <- exp(broken_line_df$intercept[i])
   }
   broken_line_points_df <- as.data.frame(broken_line_points_df)
   
@@ -84,7 +87,7 @@ fit_broken_line_gamma <- function(results_df, nb_breakpoints = 2, delta_min, del
   
   # Figure out which segment is best
   # browser()
-  broken_line_points_df$loss <- sapply(broken_line_points_df$slope, function(x) (abs(x) - 2 * gamma)^2 + 1e6 * as.numeric(x < -1 | x > 0))
+  broken_line_points_df$loss <- sapply(broken_line_points_df$gamma.slope, function(x) (abs(x) - 2 * gamma)^2 + 1e6 * as.numeric(x < -1 | x > 0))
   
   # Score the segments
   segments.squared_lengths <- (broken_line_points_df$x.end - broken_line_points_df$x.start)^2 +
@@ -183,12 +186,12 @@ extract_gamma_features <- function(var_IC_df, gamma, plotting = F, var_IC.plot =
                                                       plotting = plotting, var_IC.plot = var_IC.plot)$broken_line_points_df,
                                 nrow.var_IC_df = nrow.var_IC_df, n_breakpoints = 1)
   broken_lines.1bp_fit <- cbind(broken_lines.1bp_fit,
-                                slopes.ordering = paste(order(broken_lines.1bp_fit$slope), sep = '', collapse = ''))
+                                slopes.ordering = paste(order(broken_lines.1bp_fit$gamma.slope), sep = '', collapse = ''))
   broken_lines.2bp_fit <- cbind(fit_broken_line_gamma(var_IC_df, 2, delta_min, delta_max, gamma, 
                                                       plotting = plotting, var_IC.plot = var_IC.plot)$broken_line_points_df,
                                 nrow.var_IC_df = nrow.var_IC_df, n_breakpoints = 2)
   broken_lines.2bp_fit <- cbind(broken_lines.2bp_fit,
-                                slopes.ordering = paste(order(broken_lines.2bp_fit$slope), sep = '', collapse = ''))
+                                slopes.ordering = paste(order(broken_lines.2bp_fit$gamma.slope), sep = '', collapse = ''))
   
   broken_lines.results <- rbind(broken_lines.1bp_fit, broken_lines.2bp_fit)
   broken_lines.results$is_best <- rep(0, nrow(broken_lines.results))
