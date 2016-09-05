@@ -30,6 +30,7 @@ compute_true_Psi0_delta <- function(type, positivity_parameter, alpha0, beta0, b
   integrate(integrand, lower = -5 * positivity_parameter, upper = 5 * positivity_parameter)$value
 }
 
+
 # Compute the true variance of the influence curve of Psi0(delta) and of the first order Taylor expansion
 compute_true_var_IC_Psi0_delta <- function(type, positivity_parameter, alpha0, beta0, 
                                            beta1, beta2, d0, delta, 

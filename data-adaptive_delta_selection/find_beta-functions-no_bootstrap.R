@@ -90,7 +90,7 @@ fit_broken_line_beta <- function(results_df, nb_breakpoints = 2, beta, Delta.del
                           as.vector(segmented.out$psi[, 2]), 
                           max(results_df$log_delta))
   
-  broken_line_points_df <- matrix(0, ncol = 13, nrow = length(fitted_breakpoints) - 1)
+  broken_line_points_df <- matrix(0, ncol = 14, nrow = length(fitted_breakpoints) - 1)
   colnames(broken_line_points_df) <- c('x.start', 'x.end', 'y.start', 'y.end', 'Delta.delta_rate',
                                        'RSS', 'r_squared',
                                        'nb_points', 'leftmost', 'segment.squared_length',
@@ -108,7 +108,8 @@ fit_broken_line_beta <- function(results_df, nb_breakpoints = 2, beta, Delta.del
     broken_line_points_df[i, 'r_squared'] <- as.numeric(summary(lm_on_subset.out)$r.squared)
     broken_line_points_df[i, 'nb_points'] <- nrow(segment.subset)
     broken_line_points_df[i, 'leftmost'] <- i
-    broken_line_points_df[i, 'slope'] <- broken_line_df$slope[i]
+    broken_line_points_df[i, 'beta.slope'] <- broken_line_df$slope[i]
+    broken_line_points_df[i, 'beta.intercept'] <- broken_line_df$intercept[i]
   }
   broken_line_points_df <- as.data.frame(broken_line_points_df)
   
@@ -154,7 +155,7 @@ fit_broken_line_beta <- function(results_df, nb_breakpoints = 2, beta, Delta.del
 lts_regression <- function(results_df, Delta.delta_rate_){
   regression_df <- subset(results_df, fin_diff !=0 & Delta.delta_rate == Delta.delta_rate_)
   lts_fit <- ltsReg(regression_df$log_delta, regression_df$log_fin_diff)
-  c(intercept = as.numeric(lts_fit$coefficients[1]), slope =as.numeric(lts_fit$coefficients[2]), 
+  c(beta.lts.intercept = as.numeric(lts_fit$coefficients[1]), beta.lts.slope =as.numeric(lts_fit$coefficients[2]), 
     r.squared = lts_fit$rsquared)
 }
 

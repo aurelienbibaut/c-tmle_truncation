@@ -35,7 +35,7 @@ sample_datagen_dist.parameters <- function(alpha0_max){
        beta2 = beta2, gamma = gamma)
 }
 
-TMLE_delta_n <- function(observed_data, C0 = 0.05, n0 = 100){
+estimate_optimal_rate <- function(observed_data){
   # Extract features
   # Compute finite differences
   Delta.delta_rates <- c(0.8, 1, 1.1, 1.375, 1.5)
@@ -73,17 +73,17 @@ TMLE_delta_n <- function(observed_data, C0 = 0.05, n0 = 100){
   colnames(features) <- colnames(test_set)[1:355]
   
   # Estimate rate based on deeplearning fit
-  h2o.rate_regression_fit <- h2o.loadModel("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.deeplearning_fit/DeepLearning_model_R_1472654567301_6")
+  h2o.rate_regression_fit <- h2o.loadModel("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.deeplearning_fit/DeepLearning_model_R_1472825287709_4")
   features.h2o <- as.h2o(as.data.frame(features))
   predicted_delta_rate <- as.vector(h2o.predict(h2o.rate_regression_fit, features.h2o))
   
   # Compute delta_n based on predicted rate
   if(predicted_delta_rate < 0) stop('Negative predicted rate. This does not make sense')
-  delta_n <- C0 * (n / n0)^(-predicted_delta_rate)
   
-  # Returns TMLE of target parameter with truncation level delta_n
-  list(Psi_n = TMLE_EY1_speedglm(observed_data, delta_n)$Psi_n, delta_n = delta_n, rate.estimate = predicted_delta_rate)
+  predicted_delta_rate
 }
+
+
 
 # debug(TMLE_delta_n)
 # debug(extract_beta_features)
@@ -137,25 +137,31 @@ simulate_and_estimate_once <-function(){
   baseline_Psi_n.0.05 <- TMLE_EY1_speedglm(observed_data, baseline_delta_n.05)
   optimal_Psi_n.0.05 <- TMLE_EY1_speedglm(observed_data, optimal_delta_n.05)
   
-  TMLE_delta_n.result.0.01 <- TMLE_delta_n(observed_data, C0 = 0.01)
-  TMLE_delta_n.result.0.05 <- TMLE_delta_n(observed_data, C0 = 0.05)
+  # Estimate optimal rate
+  try.estimate_rate.result <- try(estimated_optimal_rate <- estimate_optimal_rate(observed_data))
+  if(class(try.estimate_rate.result) == "try-error") stop('Could not estimate rate')
+  delta_n.0.01 <- 0.01 * (n / 100)^(-estimated_optimal_rate)
+  delta_n.0.05 <- 0.05 * (n / 100)^(-estimated_optimal_rate)
   
-  cat('n = ', n, ', EY1 = ', EY1, '\n',
-      'baseline delta_n 0.01 = ', baseline_delta_n.01, ' TMLE at baseline delta_n 0.01 = ', baseline_Psi_n.0.01$Psi_n, '\n',
-      'baseline delta_n 0.05 = ', baseline_delta_n.05, ' TMLE at baseline delta_n 0.05= ', baseline_Psi_n.0.05$Psi_n, '\n',
-      'delta_n.0.01 = ', TMLE_delta_n.result.0.01$delta_n, ', TMLE at delta_n.0.01 = ',  TMLE_delta_n.result.0.01$Psi_n, '\n',
-      'delta_n.0.05 = ', TMLE_delta_n.result.0.05$delta_n, ', TMLE at delta_n.0.05 = ',  TMLE_delta_n.result.0.05$Psi_n, '\n',
-      'loss baseline 0.01', (baseline_Psi_n.0.01$Psi_n - EY1)^2,
-      ', loss baseline 0.05', (baseline_Psi_n.0.05$Psi_n - EY1)^2,
-      ', loss data adaptive selection', (TMLE_delta_n.result.0.01$Psi_n - EY1)^2, '\n')
+  Psi_n.0.01 <- TMLE_EY1_speedglm(observed_data, delta_n.0.01)
+  Psi_n.0.05 <- TMLE_EY1_speedglm(observed_data, delta_n.0.05)
+  
+  #   cat('n = ', n, ', EY1 = ', EY1, '\n',
+  #       'baseline delta_n 0.01 = ', baseline_delta_n.01, ' TMLE at baseline delta_n 0.01 = ', baseline_Psi_n.0.01$Psi_n, '\n',
+  #       'baseline delta_n 0.05 = ', baseline_delta_n.05, ' TMLE at baseline delta_n 0.05= ', baseline_Psi_n.0.05$Psi_n, '\n',
+  #       'delta_n.0.01 = ', TMLE_delta_n.result.0.01$delta_n, ', TMLE at delta_n.0.01 = ',  TMLE_delta_n.result.0.01$Psi_n, '\n',
+  #       'delta_n.0.05 = ', TMLE_delta_n.result.0.05$delta_n, ', TMLE at delta_n.0.05 = ',  TMLE_delta_n.result.0.05$Psi_n, '\n',
+  #       'loss baseline 0.01', (baseline_Psi_n.0.01$Psi_n - EY1)^2,
+  #       ', loss baseline 0.05', (baseline_Psi_n.0.05$Psi_n - EY1)^2,
+  #       ', loss data adaptive selection', (TMLE_delta_n.result.0.01$Psi_n - EY1)^2, '\n')
   
   list(estimates = rbind(c(EY1 = EY1, n = n, estimator = 'baseline0.01', delta = baseline_delta_n.01, Psi_n = baseline_Psi_n.0.01$Psi_n),
                          c(EY1 = EY1, n = n, estimator = 'baseline0.05', delta = baseline_delta_n.05, Psi_n = baseline_Psi_n.0.05$Psi_n),
                          c(EY1 = EY1, n = n, estimator = 'optimal0.01', delta = optimal_delta_n.01, Psi_n = optimal_Psi_n.0.01$Psi_n),
                          c(EY1 = EY1, n = n, estimator = 'optimal0.05', delta = optimal_delta_n.05, Psi_n = optimal_Psi_n.0.05$Psi_n),
-                         c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.01', delta = TMLE_delta_n.result.0.01$delta_n, Psi_n = TMLE_delta_n.result.0.01$Psi_n),
-                         c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.05', delta = TMLE_delta_n.result.0.05$delta_n, Psi_n = TMLE_delta_n.result.0.05$Psi_n)),
-       rate.estimate = TMLE_delta_n.result.0.01$rate.estimate,
+                         c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.01', delta = delta_n.0.01, Psi_n = Psi_n.0.01$Psi_n),
+                         c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.05', delta = delta_n.0.05, Psi_n = Psi_n.0.05$Psi_n)),
+       rate.estimate = estimated_optimal_rate,
        true_rate = optimal_rate, n = n)
 }
 
@@ -189,6 +195,8 @@ plot_MSEs <- function(results.estimates, results.rates){
 
 results.estimates <- vector()
 results.rates <- vector()
+
+# debug(estimate_optimal_rate)
 
 ns <- c(1e3, 5e3, 1e4, 2e4, 5e4)
 # Repeat the dataset simulation and estimation process a bunch of times

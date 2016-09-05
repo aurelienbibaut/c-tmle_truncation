@@ -45,7 +45,7 @@ fit_broken_line_gamma <- function(results_df, nb_breakpoints = 2, delta_min, del
   fitted_breakpoints <- c(log(delta_min) / log(10), 
                           as.vector(segmented.out$psi[, 2]), 
                           log(delta_max) / log(10))
-  broken_line_points_df <- matrix(0, ncol = 12, nrow = length(fitted_breakpoints) - 1)
+  broken_line_points_df <- matrix(0, ncol = 13, nrow = length(fitted_breakpoints) - 1)
   colnames(broken_line_points_df) <- c('x.start', 'x.end', 'y.start', 'y.end',
                                        'RSS', 'r_squared',
                                        'nb_points', 'leftmost', 'segment.squared_length',
@@ -62,7 +62,8 @@ fit_broken_line_gamma <- function(results_df, nb_breakpoints = 2, delta_min, del
     broken_line_points_df[i, 'r_squared'] <- as.numeric(summary(lm_on_subset.out)$r.squared)
     broken_line_points_df[i, 'nb_points'] <- nrow(segment.subset)
     broken_line_points_df[i, 'leftmost'] <- i
-    broken_line_points_df[i, 'slope'] <- broken_line_df$slope[i]
+    broken_line_points_df[i, 'gamma.slope'] <- broken_line_df$slope[i]
+    broken_line_points_df[i, 'gamma.intercept'] <- broken_line_df$intercept[i]
   }
   broken_line_points_df <- as.data.frame(broken_line_points_df)
   
@@ -176,16 +177,16 @@ extract_gamma_features <- function(var_IC_df, gamma, plotting = F, var_IC.plot =
   var_IC_df <- restrict_study_domain.results$var_IC_df
   delta_min <- restrict_study_domain.results$delta_min
   delta_max <- restrict_study_domain.results$delta_max
-  n <- nrow(var_IC_df)
+  nrow.var_IC_df <- nrow(var_IC_df)
   
   broken_lines.1bp_fit <- cbind(fit_broken_line_gamma(var_IC_df, 1, delta_min, delta_max, gamma, 
                                                       plotting = plotting, var_IC.plot = var_IC.plot)$broken_line_points_df,
-                                n = n, n_breakpoints = 1)
+                                nrow.var_IC_df = nrow.var_IC_df, n_breakpoints = 1)
   broken_lines.1bp_fit <- cbind(broken_lines.1bp_fit,
                                 slopes.ordering = paste(order(broken_lines.1bp_fit$slope), sep = '', collapse = ''))
   broken_lines.2bp_fit <- cbind(fit_broken_line_gamma(var_IC_df, 2, delta_min, delta_max, gamma, 
                                                       plotting = plotting, var_IC.plot = var_IC.plot)$broken_line_points_df,
-                                n = n, n_breakpoints = 2)
+                                nrow.var_IC_df = nrow.var_IC_df, n_breakpoints = 2)
   broken_lines.2bp_fit <- cbind(broken_lines.2bp_fit,
                                 slopes.ordering = paste(order(broken_lines.2bp_fit$slope), sep = '', collapse = ''))
   

@@ -1,4 +1,4 @@
-#source('./install_packages.R')
+running_environment <- 'SAVIO2'
 # Retrieve the command line arguments
 args <- commandArgs(TRUE)
 print(args)
@@ -89,14 +89,16 @@ generate_datapoint <- function(plotting = F){
   print(beta_features)
  
   if(!is.null(gamma_features) & !is.null(beta_features)){
-    return(cbind(gamma_features, beta_features))
+    return(cbind(n = n, gamma_features, beta_features))
   }else if(!is.null(beta_features) & is.null(gamma_features)){
     features <- matrix(NA, nrow = 1, ncol = 76 + 278)
     features[, 77:(76 + 278)] <- as.matrix(beta_features)
+    features <- cbind(n = n, features)
     return(features)
   }else if(!is.null(gamma_features) & is.null(beta_features)){
     features <- matrix(NA, nrow = 1, ncol = 76 + 278)
-    features[, 0:76] <- as.matrix(gamma_features)
+    features[, 1:76] <- as.matrix(gamma_features)
+    features <- cbind(n = n, features)
     return(features)
   }else{
     stop("Could extract neither beta nor gamma features")
