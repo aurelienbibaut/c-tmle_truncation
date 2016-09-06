@@ -26,11 +26,16 @@ if(running_environment == 'SAVIO2'){
   library(R.oo, lib.loc = '~/Rlibs')
   library(R.utils, lib.loc = '~/Rlibs')
   library(Rmpi); library(doMPI)
-}else{
+}else if(running_environment == 'AWS'){
   library(R.methodsS3)
   library(R.oo)
   library(R.utils)
   library(foreach); library(doParallel)
+}else{
+  library(R.methodsS3)
+  library(R.oo)
+  library(R.utils)
+  library(Rmpi); library(doMPI)
 }
 #library(ggplot2); library(gridExtra); library(grid)
 
