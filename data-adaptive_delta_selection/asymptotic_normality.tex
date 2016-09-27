@@ -1,0 +1,62 @@
+\documentclass[a4paper]{article}
+\usepackage{fullpage}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\graphicspath{ {/home/aurelien/} }
+
+\title{Asymptotic normality of our data-adaptive estimator}
+
+\begin{document}
+
+\maketitle
+Let $\hat{P_0} = \hat{Q_0} \hat{g_0}$ be the limit of our initial estimator $P^0_n$. Let $\delta_n(\hat{P_0})$ the optimal truncation level under $\hat{P_0}$.
+
+Assume that we have an estimate $\hat{\delta}_n(\hat{P_0})$ of $\delta_n(\hat{P_0})$ such that $\hat{\delta}_n(\hat{P_0}) \sim C \delta_n(\hat{P_0})$.
+
+With the usual notations,
+
+\begin{align*}
+\Psi_{\delta_n}(P_n^*) - \Psi_{\delta_n}(P_0) &= - P_0 D_{\delta_n}^*(P_n^*) + R_{\delta_n}(P_n^*, P_0)\\
+&= (P_n - P_0) D_{\delta_n}^*(P_n^*) - P_n D_{\delta_n}^*(P_n^*) + R_{\delta_n}(P_n^*, P_0).
+\end{align*}
+
+The targeting step ensures that that $P_n D_{\delta_n}^*(P_n^*) = 0$.
+
+\medskip
+
+Let $\sigma^2(P)(\delta) = P D_\delta^*(P)^2$ and $b(P)(\delta) = \Psi_{\delta}(P) - \Psi_0(P)$. Assume that $\sigma(P)^2(\delta) \sim C_0 \delta^{-2\gamma(P)}$, $\gamma(P) \geq 0$, and $b(P)(\delta) = C_1 \delta^{1 - \beta(P)}$, $\beta < 1$. Under these assumptions, the optimal truncation level under $P$ is $\delta_n(P) = n^{-\frac{1}{2(\gamma(P) + 1 - \beta(P))}}$.
+
+\medskip
+
+We have that
+\begin{align*}
+\Psi_{\delta_n}(P_n^*) - \Psi_{\delta_n}(P_0) &= \delta_n(\hat{P_0})^{-\gamma(\hat{P_0})}(P_n - P_0) (\delta_n(\hat{P_0})^{\gamma(\hat{P_0})}  D_{\delta_n}^*(P_n^*)) + R_{\delta_n(\hat{P_0})}(P_n^*, P_0)\\
+& = \delta_n(\hat{P_0})^{-\gamma(\hat{P_0})}(P_n - P_0) Z_n(P_n^*) + R_{\delta_n(\hat{P_0})}(P_n^*, P_0),
+\end{align*}
+
+where I define $Z_n(P) = \delta_n(\hat{P_0})^{\gamma(\hat{P_0})} D_{\delta_n(\hat{P_0})}^*(P)$.
+
+\medskip
+
+Assume that 
+\begin{enumerate}
+\item $P_0 \left(Z_n(P_n^*) - Z_\infty(\hat{P_0})\right)^2 \rightarrow 0$ for a $Z_\infty(\hat{P_0})$ such that $\hat{P_0} Z_\infty(\hat{P_0})^2 < \infty$,
+\item $Z_n(P_n^*)$ falls in a $P_0$-Donsker class $\mathcal{F}$ with probability tending to one,
+\item $R_{\delta_n}(P_n^*, P_0) = o_P(\delta_n(\hat{P_0})^{-\gamma(\hat{P_0})} / \sqrt{n}) =  o_P\left(n^{-\frac{1 - \beta(\hat{P_0})}{2 (\gamma + 1 - \beta(\hat{P_0}))}}\right)$.
+\end{enumerate}
+
+From (1) and (2) above, by equicontinuity of the empirical process on $\mathcal{F}$, $(P_n - P_0)(Z_n(P_n^*) - Z_\infty(\hat{P_0})) = o_P(1 / \sqrt{n})$.
+
+Therefore
+
+$$\Psi_{\delta_n}(P_n^*) - \Psi_{\delta_n}(P_0) = n^{\frac{\gamma(\hat{P_0})}{2(\gamma + 1 -\beta(\hat{P_0}))}} P_n \left( Z_\infty(\hat{P_0}) - P_0 Z_\infty(\hat{P_0})\right) + o_P\left(n^{-\frac{1 - \beta(\hat{P_0})}{2 (\gamma(\hat{P_0}) + 1 - \beta(\hat{P_0}))}}\right),$$
+
+and thus 
+$$n^{\frac{1 - \beta(\hat{P_0})}{2 (\gamma(\hat{P_0}) + 1 - \beta(\hat{P_0}))}}\left( \Psi_{\delta_n}(P_n^*) - \Psi_{\delta_n}(P_0) \right) \xrightarrow{d} \mathcal{N}\left(0, P_0\left( Z_\infty(\hat{P_0}) - P_0 Z_\infty(\hat{P_0})\right)^2\right).$$
+
+%Thus we know how $\Psi_{\delta_n}(P_n^*) - \Psi_{\delta_n}(P_0)$ is asymptotically distributed. Note that with $\delta_n = C n^{-\frac{1}{2(\gamma(\hat{P_0}) + 1 - \beta(\hat{P_0}))}}$, bias and standard error have same rate, which might not be good to build confidence intervals around $\Psi_0(P_0)$. It suffices to pick $\delta_n$ a bit faster to make bias disappear in front of variance and thus be able to build valid asymptotic confidence intervals. (The conditions 1, 2, 3 have to still hold if we make the $\delta_n$ go to zero a bit faster).
+
+
+\end{document}

@@ -2,7 +2,7 @@ source('../utilities.R')
 source('../true_target_parameters_derivatives_and_ICs.R')
 
 # Set of parameters 1
-lambda <- 2; alpha0 <- 2; beta0 <- -3; beta1 <- 1.5; beta2 <- 1
+# lambda <- 2; alpha0 <- 2; beta0 <- -3; beta1 <- 1.5; beta2 <- 1
 # beta <- 0.25
 # gamma <- 0.125
 # kappa <- 1 / (2 * (gamma + 1 - beta))
@@ -11,7 +11,15 @@ lambda <- 2; alpha0 <- 2; beta0 <- -3; beta1 <- 1.5; beta2 <- 1
 # kappa <- 5 / 4
 # beta <- 2 - kappa
 # gamma <- 1 - kappa / 2
+current_data_generating_distributions.parameters <- list(lambda = 2, alpha0 = 4, beta2 =-3, beta0 = -1, beta1 = 1,
+                                                         beta = 7/8, gamma = 5/16)
 
+# Compute true quantities
+lambda <- current_data_generating_distributions.parameters$lambda
+alpha0 <- current_data_generating_distributions.parameters$alpha0
+beta0 <- current_data_generating_distributions.parameters$beta0
+beta1 <- current_data_generating_distributions.parameters$beta1
+beta2 <- current_data_generating_distributions.parameters$beta2
 
 # Compute key integral
 compute_bias.key_integral <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, delta){

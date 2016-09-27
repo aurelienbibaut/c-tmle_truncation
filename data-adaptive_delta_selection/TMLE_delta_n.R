@@ -6,6 +6,9 @@ library(foreach); library(doParallel)
 library(h2o)
 library(ggplot2); library(gridExtra)
 
+useEnsemble <- T
+if(useEnsemble) library(h2oEnsemble)
+
 localH2O <- h2o.init(nthreads = -1)
 
 # Load deeplearning fit for rate regression
@@ -73,9 +76,17 @@ estimate_optimal_rate <- function(observed_data){
   colnames(features) <- colnames(test_set)[1:355]
   
   # Estimate rate based on deeplearning fit
-  h2o.rate_regression_fit <- h2o.loadModel("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.deeplearning_fit/DeepLearning_model_R_1472825287709_4")
   features.h2o <- as.h2o(as.data.frame(features))
-  predicted_delta_rate <- as.vector(h2o.predict(h2o.rate_regression_fit, features.h2o))
+  if(useEnsemble){
+    h2o.rate_regression_fit <- h2o.load_ensemble("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.ensemble_fit/", 
+                                                 import_levelone = F)
+    predicted_delta_rate <- as.vector(predict(h2o.rate_regression_fit, features.h2o)$pred)
+  }else{
+    h2o.rate_regression_fit <- h2o.loadModel("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.deeplearning_fit/DeepLearning_model_R_1472825287709_4")
+    predicted_delta_rate <- as.vector(h2o.predict(h2o.rate_regression_fit, features.h2o))
+  }
+  
+  
   
   # Compute delta_n based on predicted rate
   if(predicted_delta_rate < 0) stop('Negative predicted rate. This does not make sense')
@@ -104,9 +115,26 @@ simulate_and_estimate_once <-function(){
   #   gamma <- current_data_generating_distributions.parameters$gamma
   # Set of parameters 3
   current_data_generating_distributions.parameters <- list(lambda = 2, alpha0 = 4, beta2 =-3, beta0 = -1, beta1 = 1,
-                                                           beta = 7/8, gamma = 5/16)
-  optimal_rate <- 1 / (2 * (current_data_generating_distributions.parameters$gamma + 1 - 
-                              current_data_generating_distributions.parameters$beta))
+                                                           beta = 7/8, gamma = 1/16)
+  
+  # Compute true quantities
+  lambda <- current_data_generating_distributions.parameters$lambda
+  alpha0 <- current_data_generating_distributions.parameters$alpha0
+  beta0 <- current_data_generating_distributions.parameters$beta0
+  beta1 <- current_data_generating_distributions.parameters$beta1
+  beta2 <- current_data_generating_distributions.parameters$beta2
+  # Compute true optimal constant
+  bias.kappa <- (alpha0 + max(beta2, 0) + lambda^-1) / alpha0
+  var.kappa <- (alpha0 + abs(beta2) + lambda^-1) / alpha0
+  beta <- 2 - bias.kappa
+  gamma <- 1 - var.kappa / 2
+  
+  C_b <- lambda^- 1 /  2 * exp((beta0 + beta1) * (beta2 > 0)) * 1 / (lambda^-1 + max(beta2, 0) + alpha0)
+  C_sigma2 <- lambda^-1 / 2 * exp(sign(beta2) * (beta0 + beta1)) / (lambda^-1 + alpha0 + abs(beta2))
+  
+  abs_optimal_rate <- 1 / (2 * (gamma + 1 - beta))
+  optimal_const <- (C_sigma2 / C_b^2 * gamma / (1 - beta))^abs_optimal_rate
+  
   # n <- floor(10^runif(1, min = 3, max = 4.8))
   n <- ns[which(rmultinom(1, 1, (1:length(ns)) / length(ns)) == 1)]
   
@@ -128,12 +156,15 @@ simulate_and_estimate_once <-function(){
   
   
   baseline_delta_n.01 <- 0.01 * (n / 100)^(-1/3)
-  optimal_delta_n.01 <- 0.01 * (n / 100)^(-optimal_rate)
+  optimal_delta_n.01 <- 0.01 * (n / 100)^(-abs_optimal_rate)
   baseline_delta_n.05 <- 0.05 * (n / 100)^(-1/3)
-  optimal_delta_n.05 <- 0.05 * (n / 100)^(-optimal_rate)
+  optimal_delta_n.05 <- 0.05 * (n / 100)^(-abs_optimal_rate)
+  optimal_delta_n <- optimal_const * n^(-abs_optimal_rate)
+  
   
   baseline_Psi_n.0.01 <- TMLE_EY1_speedglm(observed_data, baseline_delta_n.01)
   optimal_Psi_n.0.01 <- TMLE_EY1_speedglm(observed_data, optimal_delta_n.01)
+  optimal_Psi_n <- TMLE_EY1_speedglm(observed_data, optimal_delta_n)
   baseline_Psi_n.0.05 <- TMLE_EY1_speedglm(observed_data, baseline_delta_n.05)
   optimal_Psi_n.0.05 <- TMLE_EY1_speedglm(observed_data, optimal_delta_n.05)
   
@@ -142,10 +173,10 @@ simulate_and_estimate_once <-function(){
   if(class(try.estimate_rate.result) == "try-error") stop('Could not estimate rate')
   delta_n.0.01 <- 0.01 * (n / 100)^(-estimated_optimal_rate)
   delta_n.0.05 <- 0.05 * (n / 100)^(-estimated_optimal_rate)
-  
+  delta_n <- true_optimal_const * n^(-estimated_optimal_rate)
   Psi_n.0.01 <- TMLE_EY1_speedglm(observed_data, delta_n.0.01)
   Psi_n.0.05 <- TMLE_EY1_speedglm(observed_data, delta_n.0.05)
-  
+  Psi_n <- TMLE_EY1_speedglm(observed_data, delta_n)
   #   cat('n = ', n, ', EY1 = ', EY1, '\n',
   #       'baseline delta_n 0.01 = ', baseline_delta_n.01, ' TMLE at baseline delta_n 0.01 = ', baseline_Psi_n.0.01$Psi_n, '\n',
   #       'baseline delta_n 0.05 = ', baseline_delta_n.05, ' TMLE at baseline delta_n 0.05= ', baseline_Psi_n.0.05$Psi_n, '\n',
@@ -159,11 +190,15 @@ simulate_and_estimate_once <-function(){
                          c(EY1 = EY1, n = n, estimator = 'baseline0.05', delta = baseline_delta_n.05, Psi_n = baseline_Psi_n.0.05$Psi_n),
                          c(EY1 = EY1, n = n, estimator = 'optimal0.01', delta = optimal_delta_n.01, Psi_n = optimal_Psi_n.0.01$Psi_n),
                          c(EY1 = EY1, n = n, estimator = 'optimal0.05', delta = optimal_delta_n.05, Psi_n = optimal_Psi_n.0.05$Psi_n),
+                         c(EY1 = EY1, n = n, estimator = 'optimal', delta = optimal_delta_n, Psi_n = optimal_Psi_n$Psi_n),
                          c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.01', delta = delta_n.0.01, Psi_n = Psi_n.0.01$Psi_n),
-                         c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.05', delta = delta_n.0.05, Psi_n = Psi_n.0.05$Psi_n)),
+                         c(EY1 = EY1, n = n, estimator = 'data_adaptive.0.05', delta = delta_n.0.05, Psi_n = Psi_n.0.05$Psi_n),
+                         c(EY1 = EY1, n = n, estimator = 'data_adaptive', delta = delta_n, Psi_n = Psi_n$Psi_n)),
        rate.estimate = estimated_optimal_rate,
        true_rate = optimal_rate, n = n)
 }
+
+debug(simulate_and_estimate_once)
 
 # Repeat the dataset simulation and estimation process a bunch of times
 
