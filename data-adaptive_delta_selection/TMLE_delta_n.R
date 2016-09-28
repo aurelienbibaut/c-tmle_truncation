@@ -1,4 +1,5 @@
 running_environment <- 'AWS'
+useEnsemble <- T
 source('./find_gamma-functions.R')
 source('./find_beta-functions-no_bootstrap.R')
 
@@ -70,13 +71,19 @@ TMLE_delta_n <- function(observed_data, C0 = 0.05, n0 = 100){
     stop("Could extract neither beta nor gamma features")
   }
   features <- matrix(as.numeric(as.character(cbind(dataset_id = 1, features))), nrow = 1)
-  colnames(features) <- colnames(test_set)[1:355]
+  colnames(features) <- colnames(features_and_rates)[1:355]
+  features <- matrix(features[, colnames(test_set)[1:285]], nrow = 1)
+  colnames(features) <- colnames(test_set)[1:285]
   
   # Estimate rate based on deeplearning fit
-  h2o.rate_regression_fit <- h2o.loadModel("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.deeplearning_fit/DeepLearning_model_R_1472654567301_6")
   features.h2o <- as.h2o(as.data.frame(features))
-  predicted_delta_rate <- as.vector(h2o.predict(h2o.rate_regression_fit, features.h2o))
-  
+  if(useEnsemble){
+    h2o.rate_regression_fit <- h2o.load_ensemble('./rate_regression.ensemble_fit')
+    predicted_delta_rate <- as.vector(predict(h2o.rate_regression_fit, features.h2o)$pred)
+  }else{
+    h2o.rate_regression_fit <- h2o.loadModel("/home/rstudio/c-tmle_truncation/data-adaptive_delta_selection/rate_regression.deeplearning_fit/DeepLearning_model_R_1475068794045_16")
+    predicted_delta_rate <- as.vector(h2o.predict(h2o.rate_regression_fit, features.h2o))
+  }
   # Compute delta_n based on predicted rate
   if(predicted_delta_rate < 0) stop('Negative predicted rate. This does not make sense')
   delta_n <- C0 * (n / n0)^(-predicted_delta_rate)
