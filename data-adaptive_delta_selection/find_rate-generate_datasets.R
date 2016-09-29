@@ -1,26 +1,42 @@
-#source('./install_packages.R')
+# running_environment <- 'SAVIO2'
+running_environment <- 'AWS'
 # Retrieve the command line arguments
-args <- commandArgs(TRUE)
-print(args)
-if(length(args)==0){
-  print("No arguments supplied.")
-  ##supply default values
-  quit("no", 1)
-}else{
-  for(i in 1:length(args)){
-    eval(parse(text=args[[i]]))
+if(running_environment == 'SAVIO2'){
+  args <- commandArgs(TRUE)
+  print(args)
+  if(length(args)==0){
+    print("No arguments supplied.")
+    ##supply default values
+    quit("no", 1)
+  }else{
+    for(i in 1:length(args)){
+      eval(parse(text=args[[i]]))
+    }
   }
+}else{
+  task_id <- 1
 }
 cat("Task id: ", task_id, "\n")
 
 source('./find_gamma-functions.R')
 source('./find_beta-functions-no_bootstrap.R')
-library(R.methodsS3, lib.loc = '~/Rlibs')
-library(R.oo, lib.loc = '~/Rlibs')
-library(R.utils, lib.loc = '~/Rlibs')
-#library(ggplot2); library(gridExtra); library(grid)
-#library(foreach); library(doParallel)
-library(Rmpi); library(doMPI)
+
+if(running_environment == 'SAVIO2'){
+  library(R.methodsS3, lib.loc = '~/Rlibs')
+  library(R.oo, lib.loc = '~/Rlibs')
+  library(R.utils, lib.loc = '~/Rlibs')
+  library(Rmpi); library(doMPI)
+}else if(running_environment == 'AWS'){
+  library(R.methodsS3)
+  library(R.oo)
+  library(R.utils)
+  library(foreach); library(doParallel)
+}else{
+  library(R.methodsS3)
+  library(R.oo)
+  library(R.utils)
+  library(Rmpi); library(doMPI)
+}
 
 # Sample data-generating distribution's parameters
 sample_datagen_dist.parameters <- function(alpha0_max){
@@ -106,14 +122,15 @@ generate_datapoint <- function(plotting = F){
 # debug(extract_gamma_features)
 # debug(generate_datapoint)
 
-# Set up clustes
-#cat(detectCores(), 'cores detected\n')
-#cl <- makeCluster(getOption("cl.cores", detectCores()), outfile = '')
-#registerDoParallel(cl)
 # Set up cluster
-cl <- startMPIcluster()
-registerDoMPI(cl)
-
+if(running_environment == 'AWS'){
+  cat(detectCores(), 'cores detected\n')
+  cl <- makeCluster(getOption("cl.cores", detectCores()), outfile = '')
+  registerDoParallel(cl)
+}else{
+  cl <- startMPIcluster()
+  registerDoMPI(cl)
+}
 # Generate a bunch of datapoints and save them to a csv file
 # Find out to which file to write
 #file_number <- NULL
