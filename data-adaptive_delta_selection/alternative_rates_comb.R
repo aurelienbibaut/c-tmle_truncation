@@ -136,8 +136,8 @@ fin_diffs.all_etas.plot_bis <- ggplot(results_df,
 #   geom_abline(intercept = -4, slope = -2 * gamma)
 # 
 # print(all_etas.sigmas.plot)
-# # plot(log(deltas), log(abs(finite_diffs_bias)), ylim = c(min(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias)))),
-# #                                                         max(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias))))),
-# #      main= substitute(list(eta) == list(x),
-# #                       list(x = eta)))
-# # lines(log(deltas), log(abs(true_finite_diffs_bias)))
+# plot(log(deltas), log(abs(finite_diffs_bias)), ylim = c(min(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias)))),
+#                                                         max(c(log(abs(finite_diffs_bias)), log(abs(true_finite_diffs_bias))))),
+#      main= substitute(list(eta) == list(x),
+#                       list(x = eta)))
+# lines(log(deltas), log(abs(true_finite_diffs_bias)))
