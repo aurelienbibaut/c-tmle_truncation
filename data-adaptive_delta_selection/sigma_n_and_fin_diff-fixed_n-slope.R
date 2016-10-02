@@ -15,13 +15,13 @@ library(robustbase); library(speedglm)
 # gamma <- 0.125
 # kappa <- 1 / (2 * (gamma + 1 - beta))
 # Set of parameters 2
-# lambda <- 2; alpha0 <- 4; beta0 <- -3; beta1 <- 1.5; beta2 <- 0.5
-# kappa <- 5 / 4
-# beta <- 2 - kappa
-# gamma <- 1 - kappa / 2
+lambda <- 2; alpha0 <- 4; beta0 <- -3; beta1 <- 1.5; beta2 <- 0.5
+kappa <- 5 / 4
+beta <- 2 - kappa
+gamma <- 1 - kappa / 2
 # Set of parameters 3
-lambda <- 2; alpha0 <- 4; beta2 <- -3; beta0 <- -1; beta1 <- 1
-beta <- 7/8; gamma <- 1/16
+# lambda <- 2; alpha0 <- 4; beta2 <- -3; beta0 <- -1; beta1 <- 1
+# beta <- 7/8; gamma <- 1/16
 true_rate <- 1 / (2 * (gamma + 1 - beta))
 
 # Define candidate rates, etas and base constant C0 in delta_n
@@ -30,11 +30,11 @@ etas <- c(1.1, 1.5, 2, 3)
 C0 <- 0.05; n0 <- 100
 
 # Define estimation tasks
-n <- 1e8
+n <- floor(10^7)
 deltas <- 10^seq(from = -7, to = -1, length = 10)
 
 # Generate one sample
-observed_data.list <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, n_full)
+observed_data.list <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, n)
 observed_data <- data.frame(L0 = observed_data.list$L0,
                             A0 = observed_data.list$A0,
                             L1 = observed_data.list$L1)
@@ -53,7 +53,7 @@ results <- foreach(delta = deltas, .combine = rbind,
                      
                      fin_diff <- (Psi_n_delta_plus_Delta - TMLE_delta$Psi_n) / Delta
                      
-                     c(delta = delta, fin_diff = fin_diff, sigma_n = sqrt(TMLE_delta$var_IC))
+                     c(delta = delta, fin_diff = fin_diff, sigma_n = sqrt(TMLE_delta$var_IC.first_part))
                    }
 
 colnames(results)[1] <- "delta"

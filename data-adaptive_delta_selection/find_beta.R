@@ -42,7 +42,7 @@ observed_data <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, nb
 jobs <- expand.grid(n = ns, eta = etas)
 
 # Set up cluster
-cl <- makeCluster(getOption("cl.cores", 32), outfile = '')
+cl <- makeCluster(getOption("cl.cores", 64), outfile = '')
 registerDoParallel(cl)
 
 results <- foreach(i=1:nrow(jobs), .combine = rbind, 

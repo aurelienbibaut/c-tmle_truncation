@@ -6,7 +6,6 @@ source('../TMLE_extrapolation_functions.R')
 library(ggplot2); library(gridExtra); library(grid)
 library(foreach); library(doParallel)
 library(robustbase); library(speedglm)
-library(data.tree)
 
 # Specify data-generating distribution ------------------------------------
 
@@ -16,14 +15,14 @@ library(data.tree)
 # gamma <- 0.125
 # kappa <- 1 / (2 * (gamma + 1 - beta))
 # Set of parameters 2
-# lambda <- 2; alpha0 <- 4; beta0 <- -3; beta1 <- 1.5; beta2 <- 0.5
-# kappa <- 5 / 4
-# beta <- 2 - kappa
-# gamma <- 1 - kappa / 2
+lambda <- 2; alpha0 <- 4; beta0 <- -3; beta1 <- 1.5; beta2 <- 0.5
+kappa <- 5 / 4
+beta <- 2 - kappa
+gamma <- 1 - kappa / 2
 # Set of parameters 3
-lambda <- 2; alpha0 <- 4; beta2 <- -3; beta0 <- -1; beta1 <- 1
-beta <- 7/8; gamma <- 1/16
-true_rate <- 1 / (2 * (gamma + 1 - beta))
+# lambda <- 2; alpha0 <- 4; beta2 <- -3; beta0 <- -1; beta1 <- 1
+# beta <- 7/8; gamma <- 1/16
+# true_rate <- 1 / (2 * (gamma + 1 - beta))
 
 # Define candidate rates, etas and base constant C0 in delta_n
 candidate_rates <- seq(from = 0.1, to = 2.5, length = 10)

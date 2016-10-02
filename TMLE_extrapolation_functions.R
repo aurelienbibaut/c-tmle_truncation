@@ -202,14 +202,16 @@ TMLE_EY1_speedglm <- function(observed_data, delta, verbose = F){
   # Influence curve and its variance
   IC <- (as.numeric(A0 == 1)) / gn0_delta * (L1 - Q1d_bar_star_n) +
     gn0 / gn0_delta * Q1d_bar_star_n
+  IC.first_part <- (as.numeric(A0 == 1)) / gn0_delta * (L1 - Q1d_bar_star_n)
   var_IC <- var(IC)
+  var_IC.first_part <- var(IC.first_part)
   
   # Quantiles of gns
   gns.quantiles <- quantile(gn0, probs = c(0.1, 0.5))
   
   # Return estimator
   list(Psi_n = mean(gn0 / gn0_delta * Q1d_bar_star_n),
-       var_IC = var_IC,
+       var_IC = var_IC, var_IC.first_part = var_IC.first_part,
        gns.quantile_0.025 = gns.quantiles[1],
        gns.quantile_0.975 = gns.quantiles[2])
 }
