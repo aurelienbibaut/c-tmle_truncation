@@ -11,8 +11,8 @@ source('../true_target_parameters_derivatives_and_ICs.R')
 # kappa <- 5 / 4
 # beta <- 2 - kappa
 # gamma <- 1 - kappa / 2
-current_data_generating_distributions.parameters <- list(lambda = 2, alpha0 = 4, beta2 =-3, beta0 = -1, beta1 = 1,
-                                                         beta = 7/8, gamma = 5/16)
+current_data_generating_distributions.parameters <- list(lambda = 2, alpha0 = 4, beta2 = 1, beta0 = -3, beta1 = 1,
+                                                         beta = 7/8, gamma = 1/16)
 
 # Compute true quantities
 lambda <- current_data_generating_distributions.parameters$lambda
@@ -46,11 +46,27 @@ compute_var.key_integral <- function(type, positivity_parameter, alpha0, beta0, 
   integrate(integrand, lower =  -Inf, upper = logit(delta) / alpha0)$value
 }
 
+compute_IC.first_part_squared.var <- function(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0, delta){
+  densities_and_cond_expectation <- generate_densities(type, positivity_parameter, alpha0, beta0, beta1, beta2, d0)
+  g0_dw_w <- densities_and_cond_expectation$g0_dw_w
+  Q0_dw_w <- densities_and_cond_expectation$Q0_dw_w
+  q_w <- densities_and_cond_expectation$q_w
+  
+  # Define integrand such that \int integrand(w) dw = Psi_0(\delta) and integrate it
+  integrand <- Vectorize(function(w) q_w(w) * g0_dw_w(w) * Q0_dw_w(w) * (1 - Q0_dw_w(w)))
+  integrate(integrand, lower =  -Inf, upper = logit(delta) / alpha0)$value
+  
+  integrand <- Vectorize(function(w) q_w(w) * g0_dw_w(w) * (Q0_dw_w(w) - 4*Q0_dw_w(w)^2 + 6 * Q0_dw_w(w)^3 - 3 * Q0_dw_w(w)^4))
+  integrate(integrand, lower =  -Inf, upper = logit(delta) / alpha0)$value / delta^4
+}
+
 deltas <- 10^seq(from = -8, to = -1, length = 1000)
 
 bias.key_integrals <- sapply(deltas, function(delta) compute_bias.key_integral("L0_exp", lambda, alpha0, beta0, beta1, beta2,
                                                                        alwaysTreated0, delta))
 var.key_integrals <- sapply(deltas, function(delta) compute_var.key_integral("L0_exp", lambda, alpha0, beta0, beta1, beta2,
+                                                                               alwaysTreated0, delta))
+var_var.integrals <- sapply(deltas, function(delta) compute_IC.first_part_squared.var("L0_exp", lambda, alpha0, beta0, beta1, beta2,
                                                                                alwaysTreated0, delta))
 
 # fin_diffs <- Psi_0_deltas[2:length(deltas)] - Psi_0_deltas[1:(length(deltas) - 1)] / 
@@ -66,16 +82,28 @@ C_sigma2 <- lambda^-1 / 2 * exp(sign(beta2) * (beta0 + beta1)) / (lambda^-1 + al
 # Optimal constant
 abs_optimal_rate <- 1 / (gamma + 1 - beta)
 optimal_const <- (C_sigma2 / C_b^2 * gamma / (1 - beta))^abs_optimal_rate
+
 delta_1000 <- optimal_const * 1000^-abs_optimal_rate
 cat('Optimal n rate: ', -abs_optimal_rate,
     '\nOptimal constant: ', optimal_const,
     '\nThus delta_1000 = ', delta_1000, '\n')
 
-par(mfrow = c(1, 2))
-plot(log(deltas) / log(10), log(abs(bias.key_integrals)) / log(10), main = "Bias' key integral")
-abline(a = log(C_b) / log(10), 
-       b = bias.kappa)
+# par(mfrow = c(1, 2))
+# plot(log(deltas) / log(10), log(abs(bias.key_integrals)) / log(10), main = "Bias' key integral")
+# abline(a = log(C_b) / log(10), 
+#        b = bias.kappa)
 
 plot(log(deltas) / log(10), log(abs(var.key_integrals)) / log(10), main = "Variance' key integral")
 abline(a = log(C_sigma2) / log(10),
        b = var.kappa)
+
+plot(log(deltas) / log(10), log(abs(var_var.integrals)) / log(10), main = "Var IC squared")
+
+var_IC_squared_df <- data.frame(log_delta = log(deltas) / log(10),
+                                log_var_IC2 = log(abs(var_var.integrals)) / log(10))
+
+lin_reg_var_IC2 <- lm(log_var_IC2 ~ log_delta, data = var_IC_squared_df)
+abline(a = lin_reg_var_IC2$coefficients[1],
+       b = lin_reg_var_IC2$coefficients[2])
+cat("Gamma :", gamma, "\n")
+cat("Delta rate for var(IC_delta^2): ", lin_reg_var_IC2$coefficients[2])
