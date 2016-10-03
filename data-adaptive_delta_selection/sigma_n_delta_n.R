@@ -36,7 +36,7 @@ nb_children <- c(10, 5, 2, rep(1,6)) # nb of children at each level (at a given 
 #same number of children)
 phi <- function(i){ # indices of level i are [phi(i-1) + 1, phi(i)]
   if(i == 0){
-   return(0) 
+    return(0) 
   }else if(i == 1){
     return(1)
   }else{
@@ -71,6 +71,19 @@ for(i in 2:max(levels.upper_bounds)){
   subsamples[[i]] <- sample(subsamples[[get_parent(i)]], ns[get_level(i)], replace = F)
 }
 
+# Compute sigma_n and fin_diff
+
+compute_sigma_n_and_fin_diff <- function(indices, delta, Delta){
+  replicate_data <- observed_data[indices, ]
+  
+  TMLE_delta <- TMLE_EY1_speedglm(replicate_data, delta)
+  TMLE_delta_plus_Delta <- TMLE_EY1_speedglm(replicate_data, delta + Delta)
+  sigma_n <- sqrt(TMLE_delta$var_IC)
+  fin_diff <- (TMLE_delta_plus_Delta$Psi_n - TMLE_delta$Psi_n) / Delta
+  
+  c(fin_diff, sigma_n)
+}
+
 # Generate one sample
 observed_data.list <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, max(ns))
 observed_data <- data.frame(L0 = observed_data.list$L0,
@@ -88,18 +101,25 @@ results <- foreach(job = 1:nrow(estimation_tasks), .combine = rbind,
                      cat("Beginning of n = ", n, "\n")
                      delta <- n^(-candidate_rate / eta)
                      Delta <- n^(-0.25) * delta^((beta + 1 - gamma) / 2)
-                     TMLE_delta <- TMLE_EY1_speedglm(observed_data[1:n, ], delta)
-                     TMLE_delta_plus_Delta <- TMLE_EY1_speedglm(observed_data[1:n, ], delta + Delta)
-                     sigma_n <- sqrt(TMLE_delta$var_IC)
-                     fin_diff <- (TMLE_delta_plus_Delta$Psi_n - TMLE_delta$Psi_n) / Delta
+                     
+                     current_level <- which(ns == n)
+                     
+                     subsamples.results <- 
+                       sapply(levels.lower_bounds[current_level]:levels.upper_bounds[current_level],
+                              function(i) compute_sigma_n_and_fin_diff(indices = subsamples[[i]],
+                                                                       delta = delta,
+                                                                       Delta = Delta))
+                     fin_diff <- median(subsamples.results[1, ])
+                     sigma_n <- median(subsamples.results[2, ])
+                     
                      cat("n = ", n, ", delta = ", delta, ", sigma_n = ", sigma_n, "\n")
                      c(n = n, candidate_rate = candidate_rate, delta = delta, sigma_n = sigma_n, 
                        fin_diff = fin_diff)
                    }
 
 log_sigma_n_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / log(10),
-                                                   y = log(sigma_n) / log(10),
-                                                   coulour = factor(candidate_rate))) +
+                                                            y = log(sigma_n) / log(10),
+                                                            coulour = factor(candidate_rate))) +
   geom_point() + geom_line() +
   geom_abline(intercept = -0.7, slope = -gamma) +
   geom_abline(intercept = -0.8, slope = -gamma)
@@ -115,8 +135,8 @@ log_fin_diff_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / lo
   geom_point() + geom_line()
 
 log_fin_diff_log_n <- ggplot(as.data.frame(results), aes(x = log(n) / log(10),
-                                                             y = log(abs(fin_diff)) / log(10),
-                                                             coulour = factor(candidate_rate))) +
+                                                         y = log(abs(fin_diff)) / log(10),
+                                                         coulour = factor(candidate_rate))) +
   geom_point() + geom_line()
 
 grid.arrange(nrow = 2, ncol = 2, log_sigma_n_log_delta, log_sigma_n_log_n,
