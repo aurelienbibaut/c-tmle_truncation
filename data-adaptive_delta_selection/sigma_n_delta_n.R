@@ -32,25 +32,27 @@ candidate_rates <- c(0.8 * true_rate, true_rate, 1.2 * true_rate)
 estimation_tasks <- expand.grid(n = ns, candidate_rate = candidate_rates)
 
 # Subsamples' tree
-nb_children <- c(3, rep(2, length(ns) - 2))
+nb_children <- c(3, 2, 3, rep(2,6))
 phi <- function(i){ # indices of level i are [phi(i-1) + 1, phi(i)]
-  if(i == 1){
+  if(i == 0){
+   return(0) 
+  }else if(i == 1){
     return(1)
   }else{
     phi(i-1) + prod(nb_children[1:(i-1)])
   }
 }
-levels.upper_bounds <- sapply(1:length(nb_children), Vectorize(phi))
-levels.lower_bounds <- sapply(1:length(nb_children), Vectorize(function(i) phi(i) - nb_children[i] + 1))
+levels.upper_bounds <- sapply(1:(length(nb_children)+1), Vectorize(phi))
+levels.lower_bounds <- sapply(1:(length(nb_children)+1), Vectorize(function(i) phi(i-1) + 1))
 
 get_level <- function(i){
-  min(which(phis >= i))
+  min(which(levels.upper_bounds >= i))
 }
 
 get_children <- function(i){
-  # Figure out position r in level
-  r <- i - phis[get_level(i) - 1]
-  r
+  l <- get_level(i)
+  r <- i - levels.lower_bounds[l] + 1
+  (phi(l) + nb_children[l] * (r-1) + 1):(phi(l) + nb_children[l] * r)
 }
 
 root <- list(indices = 1:max(ns))
