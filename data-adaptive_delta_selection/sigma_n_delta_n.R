@@ -27,12 +27,13 @@ true_rate <- 1 / (2 * (gamma + 1 - beta))
 
 # Define Estimation tasks
 eta <- 2
-ns <- 10^seq(from = 3, to = 7.5, by = 0.5)
+ns <- sort(10^seq(from = 3, to = 7.5, by = 0.5), decreasing = T)
 candidate_rates <- c(0.8 * true_rate, true_rate, 1.2 * true_rate)
 estimation_tasks <- expand.grid(n = ns, candidate_rate = candidate_rates)
 
 # Subsamples' tree
-nb_children <- c(3, 2, 3, rep(2,6))
+nb_children <- c(10, 5, 2, rep(1,6)) # nb of children at each level (at a given depth, each node has the
+#same number of children)
 phi <- function(i){ # indices of level i are [phi(i-1) + 1, phi(i)]
   if(i == 0){
    return(0) 
@@ -55,8 +56,20 @@ get_children <- function(i){
   (phi(l) + nb_children[l] * (r-1) + 1):(phi(l) + nb_children[l] * r)
 }
 
-root <- list(indices = 1:max(ns))
+get_parent <- function(i){
+  l <- get_level(i)
+  nb_siblings <- nb_children[l-1]
+  r <- i - levels.lower_bounds[l] + 1 # Position of i in its level
+  r_parent <- floor((r - 1)/ nb_siblings) + 1 # Position of its parent in its own level
+  levels.lower_bounds[l-1] + r_parent - 1
+}
 
+# Generate the subsampling tree
+subsamples <- list()
+subsamples[[1]] <- 1:max(ns)
+for(i in 2:max(levels.upper_bounds)){
+  subsamples[[i]] <- sample(subsamples[[get_parent(i)]], ns[get_level(i)], replace = F)
+}
 
 # Generate one sample
 observed_data.list <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, max(ns))
@@ -64,7 +77,7 @@ observed_data <- data.frame(L0 = observed_data.list$L0,
                             A0 = observed_data.list$A0,
                             L1 = observed_data.list$L1)
 
-cl <- makeCluster(getOption("cl.cores", 32), outfile = '')
+cl <- makeCluster(getOption("cl.cores", 64), outfile = '')
 registerDoParallel(cl)
 
 results <- foreach(job = 1:nrow(estimation_tasks), .combine = rbind, 
@@ -80,7 +93,8 @@ results <- foreach(job = 1:nrow(estimation_tasks), .combine = rbind,
                      sigma_n <- sqrt(TMLE_delta$var_IC)
                      fin_diff <- (TMLE_delta_plus_Delta$Psi_n - TMLE_delta$Psi_n) / Delta
                      cat("n = ", n, ", delta = ", delta, ", sigma_n = ", sigma_n, "\n")
-                     c(n = n, candidate_rate = candidate_rate, delta = delta, sigma_n = sigma_n, fin_diff = fin_diff)
+                     c(n = n, candidate_rate = candidate_rate, delta = delta, sigma_n = sigma_n, 
+                       fin_diff = fin_diff)
                    }
 
 log_sigma_n_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / log(10),
