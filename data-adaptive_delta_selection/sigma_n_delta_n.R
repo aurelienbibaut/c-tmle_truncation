@@ -117,6 +117,8 @@ results <- foreach(job = 1:nrow(estimation_tasks), .combine = rbind,
                        fin_diff = fin_diff)
                    }
 
+pivot <- (abs(results[, "fin_diff"]) * results[, "delta"] / results[, "sigma_n"])^eta * sqrt(n)
+results<- cbind(results, pivot = pivot)
 log_sigma_n_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / log(10),
                                                             y = log(sigma_n) / log(10),
                                                             coulour = factor(candidate_rate))) +
@@ -127,17 +129,37 @@ log_sigma_n_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / log
 log_sigma_n_log_n <- ggplot(as.data.frame(results), aes(x = log(n) / log(10),
                                                         y = log(sigma_n) / log(10),
                                                         coulour = factor(candidate_rate))) +
-  geom_point() + geom_line()
+  geom_point() + geom_line() +
+  geom_abline(intercept = -0.5, slope = gamma * true_rate / eta) +
+  geom_abline(intercept = -0.7, slope = gamma * true_rate / eta) +
+  geom_abline(intercept = -0.9, slope = gamma * true_rate / eta)
 
 log_fin_diff_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / log(10),
                                                              y = log(abs(fin_diff)) / log(10),
-                                                             coulour = candidate_rate)) +
-  geom_point() + geom_line()
+                                                             coulour = factor(candidate_rate))) +
+  geom_point() + geom_line() +
+  geom_abline(intercept = -2, slope = -beta)
 
 log_fin_diff_log_n <- ggplot(as.data.frame(results), aes(x = log(n) / log(10),
                                                          y = log(abs(fin_diff)) / log(10),
                                                          coulour = factor(candidate_rate))) +
+  geom_point() + geom_line() + 
+  geom_abline(intercept = -2, slope = beta * true_rate / eta) +
+  geom_abline(intercept = -2.3, slope = beta * true_rate / eta) + 
+  geom_abline(intercept = -1.7, slope = beta * true_rate / eta)
+
+log_pivot_log_n <- ggplot(as.data.frame(results), aes(x = log(n) / log(10),
+                                                      y = log(pivot) / log(10),
+                                                      coulour = factor(candidate_rate))) +
   geom_point() + geom_line()
 
-grid.arrange(nrow = 2, ncol = 2, log_sigma_n_log_delta, log_sigma_n_log_n,
-             log_fin_diff_log_delta, log_fin_diff_log_n)
+log_half_pivot_log_n <- ggplot(as.data.frame(results), aes(x = log(n) / log(10),
+                                                           y = log((abs(fin_diff) * delta / sigma_n)^eta * sqrt(n)) / log(10),
+                                                           coulour = factor(candidate_rate))) +
+  geom_point() + geom_line() + 
+  geom_abline(intercept = -2, slope = 0) + 
+  geom_abline(intercept = -2.5, slope = 0) +
+  geom_abline(intercept = -3, slope = 0)
+
+grid.arrange(nrow = 2, ncol = 2, log_pivot_log_n, log_sigma_n_log_n,
+             log_half_pivot_log_n, log_fin_diff_log_n)
