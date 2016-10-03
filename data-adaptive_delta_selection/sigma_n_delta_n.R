@@ -51,21 +51,21 @@ results <- foreach(job = 1:nrow(estimation_tasks), .combine = rbind,
                      TMLE_delta <- TMLE_EY1_speedglm(observed_data[1:n, ], delta)
                      TMLE_delta_plus_Delta <- TMLE_EY1_speedglm(observed_data[1:n, ], delta + Delta)
                      sigma_n <- sqrt(TMLE_delta$var_IC)
-                     fin_diff <- (TMLE_delta_plus_delta$Psi_n - TMLE_delta_plus_Delta$Psi_n) / Delta
+                     fin_diff <- (TMLE_delta_plus_Delta$Psi_n - TMLE_delta$Psi_n) / Delta
                      cat("n = ", n, ", delta = ", delta, ", sigma_n = ", sigma_n, "\n")
                      c(n = n, candidate_rate = candidate_rate, delta = delta, sigma_n = sigma_n, fin_diff = fin_diff)
                    }
 
 log_sigma_n_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / log(10),
                                                    y = log(sigma_n) / log(10),
-                                                   coulour = candidate_rate)) +
+                                                   coulour = factor(candidate_rate))) +
   geom_point() + geom_line() +
   geom_abline(intercept = -0.7, slope = -gamma) +
   geom_abline(intercept = -0.8, slope = -gamma)
 
 log_sigma_n_log_n <- ggplot(as.data.frame(results), aes(x = log(n) / log(10),
                                                         y = log(sigma_n) / log(10),
-                                                        coulour = candidate_rate)) +
+                                                        coulour = factor(candidate_rate))) +
   geom_point() + geom_line()
 
 log_fin_diff_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / log(10),
@@ -75,7 +75,8 @@ log_fin_diff_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / lo
 
 log_fin_diff_log_n <- ggplot(as.data.frame(results), aes(x = log(n) / log(10),
                                                              y = log(abs(fin_diff)) / log(10),
-                                                             coulour = candidate_rate)) +
+                                                             coulour = factor(candidate_rate))) +
   geom_point() + geom_line()
 
-grid.arrange(nrow = 2, ncol = 1, log_sigma_n_log_delta, log_sigma_n_log_n)
+grid.arrange(nrow = 2, ncol = 2, log_sigma_n_log_delta, log_sigma_n_log_n,
+             log_fin_diff_log_delta, log_fin_diff_log_n)
