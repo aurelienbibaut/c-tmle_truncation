@@ -31,6 +31,31 @@ ns <- 10^seq(from = 3, to = 7.5, by = 0.5)
 candidate_rates <- c(0.8 * true_rate, true_rate, 1.2 * true_rate)
 estimation_tasks <- expand.grid(n = ns, candidate_rate = candidate_rates)
 
+# Subsamples' tree
+nb_children <- c(3, rep(2, length(ns) - 2))
+phi <- function(i){ # indices of level i are [phi(i-1) + 1, phi(i)]
+  if(i == 1){
+    return(1)
+  }else{
+    phi(i-1) + prod(nb_children[1:(i-1)])
+  }
+}
+levels.upper_bounds <- sapply(1:length(nb_children), Vectorize(phi))
+levels.lower_bounds <- sapply(1:length(nb_children), Vectorize(function(i) phi(i) - nb_children[i] + 1))
+
+get_level <- function(i){
+  min(which(phis >= i))
+}
+
+get_children <- function(i){
+  # Figure out position r in level
+  r <- i - phis[get_level(i) - 1]
+  r
+}
+
+root <- list(indices = 1:max(ns))
+
+
 # Generate one sample
 observed_data.list <- generate_data("L0_exp", lambda, alpha0, beta0, beta1, beta2, max(ns))
 observed_data <- data.frame(L0 = observed_data.list$L0,
