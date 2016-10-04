@@ -28,7 +28,7 @@ true_rate <- 1 / (2 * (gamma + 1 - beta))
 # Define Estimation tasks
 eta <- 2
 ns <- sort(10^seq(from = 3, to = 7.5, by = 0.5), decreasing = T)
-candidate_rates <- c(0.8 * true_rate, true_rate, 1.2 * true_rate)
+candidate_rates <- c(true_rate - 0.2, true_rate - 0.1, true_rate, true_rate + 0.1, true_rate + 0.2)
 estimation_tasks <- expand.grid(n = ns, candidate_rate = candidate_rates)
 
 # Subsamples' tree
@@ -65,12 +65,13 @@ get_parent <- function(i){
 }
 
 # Generate the subsampling tree
+cat("About to generate the subsampling tree\n")
 subsamples <- list()
 subsamples[[1]] <- 1:max(ns)
 for(i in 2:max(levels.upper_bounds)){
   subsamples[[i]] <- sample(subsamples[[get_parent(i)]], ns[get_level(i)], replace = F)
 }
-
+cat("Done generating the subsampling tree\n")
 # Compute sigma_n and fin_diff
 
 compute_sigma_n_and_fin_diff <- function(indices, delta, Delta){
@@ -90,7 +91,7 @@ observed_data <- data.frame(L0 = observed_data.list$L0,
                             A0 = observed_data.list$A0,
                             L1 = observed_data.list$L1)
 
-cl <- makeCluster(getOption("cl.cores", 64), outfile = '')
+cl <- makeCluster(getOption("cl.cores", 45), outfile = '')
 registerDoParallel(cl)
 
 results <- foreach(job = 1:nrow(estimation_tasks), .combine = rbind, 
@@ -117,7 +118,7 @@ results <- foreach(job = 1:nrow(estimation_tasks), .combine = rbind,
                        fin_diff = fin_diff)
                    }
 
-pivot <- (abs(results[, "fin_diff"]) * results[, "delta"] / results[, "sigma_n"])^eta * sqrt(n)
+pivot <- (abs(results[, "fin_diff"]) * results[, "delta"] / results[, "sigma_n"])^eta * sqrt(results[, "n"])
 results<- cbind(results, pivot = pivot)
 log_sigma_n_log_delta <- ggplot(as.data.frame(results), aes(x = log(delta) / log(10),
                                                             y = log(sigma_n) / log(10),
