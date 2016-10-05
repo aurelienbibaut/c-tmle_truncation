@@ -14,13 +14,21 @@ fit_propensity_score <- function(observed_data.df, d0, deg){
 }
 
 # 
-fit_Q1_n_d <- function(observed_data.df, d0){
+fit_Q1_n_d <- function(observed_data.df, d0, intercept_only = F){
   attach(observed_data.df)
   # Fit initial model for Q
-  Q1_n_d.coeffs <- speedglm(L1 ~ L0 + A0, subset(observed_data.df, A0 == 1), 
-                            family = binomial())$coefficients
-  Q1_n_d.coeffs[is.na(Q1_n_d.coeffs)] <- 0
-  expit(as.vector(cbind(1, L0, A0) %*% Q1_n_d.coeffs))
+  if(intercept_only){
+    Q1_n_d.coeffs <- speedglm(L1 ~ A0, subset(observed_data.df, A0 == 1), 
+                              family = binomial())$coefficients
+    Q1_n_d.coeffs[is.na(Q1_n_d.coeffs)] <- 0
+    return(expit(as.vector(cbind(1, A0) %*% Q1_n_d.coeffs)))
+  }else{
+    Q1_n_d.coeffs <- speedglm(L1 ~ L0 + A0, subset(observed_data.df, A0 == 1), 
+                              family = binomial())$coefficients
+    Q1_n_d.coeffs[is.na(Q1_n_d.coeffs)] <- 0
+    return(expit(as.vector(cbind(1, L0, A0) %*% Q1_n_d.coeffs)))
+  }
+  
 }
 
 # Build a sequence of TMLEs with increasing fits
@@ -41,11 +49,11 @@ C_TMLE.build_TMLEs_sequence <- function(observed_data.df, d0, gns_d, Q1_n_d){
   # Subsequent targeting steps
   Qns_d.logit <- list(Q1_n_d.logit)
   Qn_d_stars.logit <- list(Q1_n_d_star.logit)
-  fluctuation_models[[1]] <- as.matrix(c(clever_covariate.id = 1, 
-                                         epsilon = epsilon),
+  fluctuation_models[[1]] <- as.matrix(t(c(clever_covariate.id = 1, 
+                                           epsilon = epsilon)),
                                        nrow = 1)
   
-  for(k in 2:ncol(Q1_n_d)){
+  for(k in 2:ncol(gns_d)){
     # Perform targeting step based on gn_d_delta, fluctuating Qn_{k-1}
     observed_data.df$offset <- Qns_d.logit[[length(Qns_d.logit)]]
     
@@ -94,13 +102,16 @@ C_TMLE.build_TMLEs_sequence <- function(observed_data.df, d0, gns_d, Q1_n_d){
 
 # Test the shit
 # Generate data
-observed_data <- generate_data('L0_exp', 2, 4, 1, 2, 0.5, 1e3, alpha1 = -0.01, alpha2 = 1,
+observed_data <- generate_data('L0_exp', 2, 4, 1, 2, 0.5, 1e4, alpha1 = -0.01, alpha2 = 1,
                                beta3 = 1)
 d0 <- alwaysTreated0
 observed_data.df <- data.frame(L0 = observed_data$L0, A0 = observed_data$A0,
                                L1 = observed_data$L1)
-gns_d <- sapply(1:3, function(deg) fit_propensity_score(observed_data.df, d0, deg))
 
+gns_d <- sapply(1:3, function(deg) fit_propensity_score(observed_data.df, d0, deg))
+gns_d <- cbind(g_to_g_delta(0.2, gns_d[, 1]), g_to_g_delta(0.1, gns_d[, 1]), g_to_g_delta(0.01, gns_d[, 1]), gns_d)
+Q1_d_n <- fit_Q1_n_d(observed_data.df, d0, T)
+C_TMLE.build_TMLEs_sequence(observed_data.df, d0, gns_d, Q1_d_n)
 
 # Compute the C-TMLE for given initial estimator, sequence of increasingly 
 # unbiased propensity scores, and fluctuation model
@@ -109,7 +120,7 @@ C_TMLE.predict <- function(Q1_d_n, gns, fluctuation_model){
 }
 
 # Compute the cross validated log likelihood of a Q_d fit
-CV_log_likelihood <- function(Qn_d_star.coeffs, epsilon, 
+CV_log_likelihood <- function(Qn_d_star.coeffs, epsilon,
                               observed_data.df, gn_d.coeffs, delta,
                               test_set.indices, d0){
   test_set.df <- observed_data.df[test_set.indices]
